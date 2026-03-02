@@ -1,0 +1,274 @@
+---
+title: Submitting jobs to quantum hardware
+description: Learn how to submit and manage quantum computing jobs with Superstaq
+---
+
+## Overview
+
+Superstaq provides a flexible job submission system that allows you to execute quantum circuits asynchronously. This guide covers creating jobs, checking their status, and retrieving results.
+
+## Creating and submitting jobs
+
+<Tabs>
+  <Tab title="Qiskit">
+    Submit circuits using the `run()` method on a backend:
+
+    ```python
+    import qiskit
+    import qiskit_superstaq as qss
+
+    # Initialize provider
+    provider = qss.SuperstaqProvider()
+
+    # Create a circuit
+    qc = qiskit.QuantumCircuit(2, 2)
+    qc.x(0)
+    qc.cx(0, 1)
+    qc.measure([0, 1], [0, 1])
+
+    # Get backend and submit job
+    backend = provider.get_backend("ibmq_pittsburgh_qpu")
+    job = backend.run(qc, shots=100, method="dry-run")
+
+    print(f"Job ID: {job.job_id()}")
+    ```
+
+    <Note>
+      The `method="dry-run"` parameter enables simulation mode. Remove it to run on actual hardware.
+    </Note>
+  </Tab>
+
+  <Tab title="Cirq">
+    Submit circuits using the `create_job()` method:
+
+    ```python
+    import cirq
+    import cirq_superstaq as css
+
+    # Initialize service
+    service = css.Service()
+
+    # Create a circuit
+    q0 = cirq.LineQubit(0)
+    q1 = cirq.LineQubit(1)
+    circuit = cirq.Circuit(
+        cirq.X(q0),
+        cirq.CNOT(q0, q1),
+        cirq.measure(q0, q1)
+    )
+
+    # Submit job
+    job = service.create_job(
+        circuit,
+        target="ibmq_pittsburgh_qpu",
+        repetitions=100,
+        method="dry-run"
+    )
+
+    print(f"Job ID: {job.job_id()}")
+    ```
+
+    <Note>
+      The `method="dry-run"` parameter enables simulation mode. Remove it to run on actual hardware.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Submitting multiple circuits
+
+You can submit multiple circuits in a single job:
+
+<CodeGroup>
+```python Qiskit - Multiple circuits
+# Create multiple circuits
+qc_list = [qiskit.QuantumCircuit(2, 2), qiskit.QuantumCircuit(2, 2)]
+
+for i, qc in enumerate(qc_list):
+    qc.x(0)
+    qc.cx(0, 1)
+    if i == 1:
+        qc.x(0)  # Second circuit has extra X gate
+    qc.measure([0, 1], [0, 1])
+
+# Submit all circuits as one job
+multi_job = backend.run(qc_list, shots=100, method="dry-run")
+```
+
+```python Cirq - Multiple circuits
+# Create multiple circuits
+q0, q1 = cirq.LineQubit.range(2)
+
+circuit1 = cirq.Circuit(cirq.X(q0), cirq.CNOT(q0, q1), cirq.measure(q0, q1))
+circuit2 = cirq.Circuit(cirq.H(q0), cirq.CNOT(q0, q1), cirq.measure(q0, q1))
+
+# Submit all circuits as one job
+multi_job = service.create_job(
+    [circuit1, circuit2],
+    target="ibmq_pittsburgh_qpu",
+    repetitions=100,
+    method="dry-run"
+)
+```
+</CodeGroup>
+
+## Checking job status
+
+<Steps>
+  <Step title="Monitor job status">
+    Check if your job has completed:
+
+    <Tabs>
+      <Tab title="Qiskit">
+        ```python
+        # Check single job status
+        status = job.status()
+        print(f"Job status: {status}")
+
+        # For multi-circuit jobs, check individual circuit status
+        status_0 = multi_job.status(0)
+        status_1 = multi_job.status(1)
+        print(f"Circuit 0 status: {status_0}")
+        print(f"Circuit 1 status: {status_1}")
+        ```
+      </Tab>
+
+      <Tab title="Cirq">
+        ```python
+        # Check single job status
+        status = job.status()
+        print(f"Job status: {status}")
+        # Output: "Done"
+
+        # For multi-circuit jobs, check individual circuit status
+        status_0 = multi_job.status(0)
+        status_1 = multi_job.status(1)
+        print(f"Circuit 0 status: {status_0}")
+        print(f"Circuit 1 status: {status_1}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Retrieve job by ID">
+    You can retrieve a previously submitted job using its ID:
+
+    <Tabs>
+      <Tab title="Qiskit">
+        ```python
+        # Get a job by its ID
+        job_id = "your-job-id-here"
+        retrieved_job = provider.get_job(job_id)
+
+        # Check status and get results
+        print(retrieved_job.status())
+        ```
+      </Tab>
+
+      <Tab title="Cirq">
+        ```python
+        # Get a job by its ID
+        job_id = "your-job-id-here"
+        retrieved_job = service.get_job(job_id)
+
+        # Check status and get results
+        print(retrieved_job.status())
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+## Retrieving results
+
+Once a job completes, retrieve the measurement counts:
+
+<Tabs>
+  <Tab title="Qiskit">
+    ```python
+    # Get results from a single circuit job
+    result = job.result().get_counts()
+    print(result)
+    # Output: {'11': 100}
+
+    # Get results from multi-circuit jobs
+    result_0 = multi_job.result(0).get_counts()
+    result_1 = multi_job.result(1).get_counts()
+    print(f"Circuit 0: {result_0}")
+    print(f"Circuit 1: {result_1}")
+    # Output:
+    # Circuit 0: {'11': 100}
+    # Circuit 1: {'10': 100}
+    ```
+  </Tab>
+
+  <Tab title="Cirq">
+    ```python
+    # Get results from a single circuit job
+    counts = job.counts(0)
+    print(counts)
+    # Output: {'11': 100}
+
+    # Get results from multi-circuit jobs
+    counts_0 = multi_job.counts(0)
+    counts_1 = multi_job.counts(1)
+    print(f"Circuit 0: {counts_0}")
+    print(f"Circuit 1: {counts_1}")
+    # Output:
+    # Circuit 0: {'11': 100}
+    # Circuit 1: {'01': 50, '11': 50}
+    ```
+  </Tab>
+</Tabs>
+
+## Job submission options
+
+Customize your job submission with additional parameters:
+
+<CodeGroup>
+```python Verbatim execution
+# Qiskit: Run without compilation
+job = backend.run(qc, shots=100, verbatim=True, route=False)
+
+# Cirq: Run without compilation
+job = service.create_job(circuit, repetitions=100, verbatim=True, route=False)
+```
+
+```python Tagged jobs
+# Qiskit: Add tags for organization
+job = backend.run(qc, shots=100, tag="experiment-1")
+
+# Cirq: Add tags for organization
+job = service.create_job(circuit, repetitions=100, tag="experiment-1")
+```
+
+```python Custom metadata
+# Cirq only: Add custom metadata
+job = service.create_job(
+    circuit,
+    repetitions=100,
+    metadata={"experiment": "bell_state", "version": "1.0"}
+)
+```
+</CodeGroup>
+
+## Job persistence
+
+<Tip>
+  Job results are automatically cached on the server. When you retrieve a job by ID, Superstaq will refresh the status and results from the server if needed.
+</Tip>
+
+```python
+# Example: Job state is automatically refreshed
+job._job.clear()
+job._job["status"] = "Running"
+
+# Status is retrieved from the server
+actual_status = job.status()  # Returns "Done" if completed
+actual_counts = job.counts(0)  # Returns actual results
+```
+
+## Next steps
+
+- Learn about [hardware execution](/examples/hardware-execution) on real quantum devices
+- Explore [compilation options](/api/general/client) to optimize your circuits
+- Check [resource estimates](/api/general/service) before submitting to hardware

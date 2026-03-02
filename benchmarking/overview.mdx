@@ -1,0 +1,124 @@
+---
+title: Benchmarking overview
+---
+
+Supermarq is a scalable quantum benchmark suite that provides application-oriented benchmarks to measure the performance of quantum computing systems.
+
+## What is Supermarq?
+
+[Supermarq](https://arxiv.org/abs/2202.11045) is designed to evaluate quantum hardware using real-world application benchmarks rather than synthetic tests. Each benchmark is scalable, meaning it can be instantiated for a wide range of circuit sizes and depths to match your hardware capabilities.
+
+<Note>
+All Supermarq benchmarks are available through Superstaq and can be executed on any supported quantum backend.
+</Note>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Scalable benchmarks" icon="chart-line">
+    Benchmarks can be configured for different numbers of qubits and circuit depths to match your hardware.
+  </Card>
+  <Card title="Application-oriented" icon="microchip">
+    Tests based on real quantum algorithms like VQE, QAOA, and Hamiltonian simulation.
+  </Card>
+  <Card title="Standardized scoring" icon="star">
+    All benchmarks return normalized scores between 0 and 1 for easy comparison.
+  </Card>
+  <Card title="Multiple frameworks" icon="code">
+    Support for both Cirq and Qiskit circuit representations.
+  </Card>
+</CardGroup>
+
+## How benchmarks work
+
+Each Supermarq benchmark follows a consistent workflow with two main methods:
+
+<Steps>
+  <Step title="Generate the circuit">
+    Call the `circuit()` method to generate the quantum circuit for your chosen parameters.
+    
+    ```python
+    import supermarq
+    
+    ghz = supermarq.benchmarks.GHZ(num_qubits=3)
+    circuit = ghz.circuit()
+    ```
+  </Step>
+  
+  <Step title="Execute on hardware">
+    Run the circuit on your quantum hardware or simulator to collect measurement counts.
+    
+    ```python
+    # Execute using your preferred method
+    counts = execute_circuit_on_quantum_hardware(circuit)
+    ```
+  </Step>
+  
+  <Step title="Calculate the score">
+    Pass the measurement counts to the `score()` method to get a normalized performance metric.
+    
+    ```python
+    score = ghz.score(counts)
+    print(f"Benchmark score: {score}")
+    ```
+  </Step>
+</Steps>
+
+## Benchmark architecture
+
+All benchmarks inherit from the base `Benchmark` class, which provides a consistent interface:
+
+```python
+class Benchmark:
+    def circuit(self) -> cirq.Circuit | list[cirq.Circuit]:
+        """Returns the quantum circuit(s) for the benchmark."""
+    
+    def score(self, counts: Any) -> float:
+        """Returns a normalized [0,1] score reflecting device performance."""
+```
+
+The `Benchmark` class also provides convenience methods:
+
+- `cirq_circuit()`: Returns the circuit in Cirq format
+- `qiskit_circuit()`: Returns the circuit in Qiskit format
+
+## Scoring methodology
+
+Benchmark scores are normalized to a range of [0, 1], where:
+
+- **1.0** indicates perfect performance matching ideal noiseless execution
+- **0.0** indicates maximum deviation from ideal results
+
+The specific scoring metric varies by benchmark:
+
+<Accordion title="Common scoring metrics">
+  - **Hellinger fidelity**: Measures similarity between experimental and ideal probability distributions (used in GHZ, BitCode, PhaseCode)
+  - **Magnetization difference**: Compares average magnetization values (used in Hamiltonian Simulation)
+  - **Energy expectation**: Evaluates energy estimates against ideal values (used in VQE Proxy)
+  - **Mermin operator expectation**: Tests violation of classical bounds (used in Mermin-Bell)
+</Accordion>
+
+## Installation
+
+Install the Supermarq package using pip:
+
+```bash
+pip install supermarq
+```
+
+For development work with local checks:
+
+```bash
+pip install supermarq[dev]
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Running benchmarks" href="/benchmarking/running-benchmarks">
+    Learn how to execute benchmarks on quantum hardware
+  </Card>
+  <Card title="Available benchmarks" href="/benchmarking/available-benchmarks">
+    Explore the complete suite of Supermarq benchmarks
+  </Card>
+</CardGroup>

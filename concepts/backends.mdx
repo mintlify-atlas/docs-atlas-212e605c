@@ -1,0 +1,224 @@
+---
+title: Quantum backends
+description: Understanding quantum backends and hardware targets in Superstaq
+---
+
+Quantum backends represent the hardware or simulator targets where you can execute quantum circuits. Superstaq provides access to a wide range of backends from leading quantum hardware providers.
+
+## What is a backend?
+
+A backend is a quantum computing target that can execute circuits. This includes:
+
+- **Real quantum hardware** from providers like IBM, IonQ, Rigetti, and others
+- **High-fidelity simulators** that model realistic noise and hardware constraints
+- **Ideal simulators** for testing and development
+
+## Backend structure
+
+In Superstaq, backends are identified by target strings that specify the hardware provider and device:
+
+<CodeGroup>
+```python Qiskit
+import qiskit_superstaq as qss
+
+provider = qss.SuperstaqProvider(api_key="YOUR_API_KEY")
+
+# Access a specific backend
+backend = provider.get_backend("ibmq_jakarta_qpu")
+
+# View backend properties
+print(f"Backend: {backend.name}")
+print(f"Qubits: {backend.num_qubits}")
+print(f"Coupling map: {backend.coupling_map}")
+```
+
+```python Cirq
+import cirq_superstaq as css
+
+service = css.Service(api_key="YOUR_API_KEY")
+
+# Get available targets
+targets = service.get_targets()
+
+# Get information about a specific target
+backend_info = service.target_info("ibmq_jakarta_qpu")
+print(backend_info)
+```
+</CodeGroup>
+
+## Backend types
+
+Superstaq supports multiple backend types across different quantum computing platforms:
+
+<AccordionGroup>
+  <Accordion title="IBM Quantum backends">
+    IBM backends use the `ibmq_` prefix:
+    
+    - `ibmq_jakarta_qpu` - 7-qubit IBM Quantum processor
+    - `ibmq_montreal_qpu` - 27-qubit IBM Quantum processor
+    - `ibmq_qasm_simulator` - IBM's cloud-based quantum simulator
+    
+    Access IBM backends through your IBM Quantum credentials.
+  </Accordion>
+
+  <Accordion title="Advanced Quantum Testbed (AQT)">
+    AQT backends use the `aqt_` prefix:
+    
+    - `aqt_keysight_qpu` - Superconducting transmon quantum computer at Berkeley Lab
+    - `aqt_zurich_qpu` - Alternative AQT configuration
+    
+    These backends support specialized compilation and pulse-level control.
+  </Accordion>
+
+  <Accordion title="QSCOUT backends">
+    QSCOUT backends use the `qscout_` prefix:
+    
+    - `qscout_peregrine_qpu` - Trapped-ion testbed at Sandia National Labs
+    
+    QSCOUT backends compile to Jaqal, a specialized language for ion trap systems.
+  </Accordion>
+
+  <Accordion title="CQ (ColdQuanta) backends">
+    ColdQuanta backends use the `cq_` prefix:
+    
+    - `cq_sqale_qpu` - Neutral atom quantum computer
+    
+    Requires a CQ token for access.
+  </Accordion>
+
+  <Accordion title="Superstaq simulators">
+    Superstaq provides high-performance simulators:
+    
+    - `ss_unconstrained_simulator` - Ideal simulator without hardware constraints
+    - `ss_noisy_simulator` - Realistic noise simulation
+  </Accordion>
+</AccordionGroup>
+
+## Backend properties
+
+Each backend provides detailed hardware information through its properties:
+
+### Number of qubits
+
+```python
+backend = provider.get_backend("ibmq_jakarta_qpu")
+print(f"This backend has {backend.num_qubits} qubits")
+```
+
+### Coupling map
+
+The coupling map defines which qubits can interact directly:
+
+```python
+coupling_map = backend.coupling_map
+print(f"Available qubit connections: {coupling_map}")
+```
+
+### Native gate set
+
+Backends expose their native gate operations:
+
+```python
+target_info = backend.target_info()
+print(f"Native gates: {target_info.get('native_gate_set')}")
+```
+
+<Note>
+The native gate set varies by hardware platform. IBM uses gates like `cx`, `rz`, and `sx`, while ion trap systems use gates like `xx` and `gpi`.
+</Note>
+
+### Gate durations
+
+For pulse-aware compilation, backends provide gate timing information:
+
+```python
+target = backend.target
+# Gate durations available for scheduling
+for gate_name, properties in target.items():
+    print(f"{gate_name}: {properties}")
+```
+
+## Getting available backends
+
+List all backends you have access to:
+
+<CodeGroup>
+```python Qiskit
+provider = qss.SuperstaqProvider(api_key="YOUR_API_KEY")
+
+# Get all backends
+backends = provider.backends()
+for backend in backends:
+    print(backend.name)
+```
+
+```python Cirq
+service = css.Service(api_key="YOUR_API_KEY")
+
+# Get all available targets
+targets = service.get_targets()
+for target in targets:
+    print(f"{target.target}: {target.num_qubits} qubits")
+```
+</CodeGroup>
+
+<Tip>
+Filter backends by properties like simulator status or availability:
+```python
+# Only get simulator targets
+simulators = service.get_targets(simulator=True)
+
+# Only get available hardware
+hardware = service.get_targets(available=True)
+```
+</Tip>
+
+## Provider-specific credentials
+
+Some backends require additional credentials:
+
+<Steps>
+  <Step title="Configure IBM credentials">
+    ```python
+    service = css.Service(
+        api_key="YOUR_SUPERSTAQ_KEY",
+        ibmq_token="YOUR_IBM_TOKEN",
+        ibmq_instance="ibm-q/open/main"
+    )
+    ```
+  </Step>
+  
+  <Step title="Configure ColdQuanta credentials">
+    ```python
+    service = css.Service(
+        api_key="YOUR_SUPERSTAQ_KEY",
+        cq_token="YOUR_CQ_TOKEN"
+    )
+    ```
+  </Step>
+</Steps>
+
+## Max circuits per job
+
+Backends may limit how many circuits can be submitted in a single job:
+
+```python
+max_circuits = backend.max_circuits
+if max_circuits:
+    print(f"Can submit up to {max_circuits} circuits per job")
+```
+
+<Warning>
+Exceeding `max_circuits` will cause job submission to fail. Split large batches into multiple jobs if needed.
+</Warning>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Submit jobs" icon="play" href="/concepts/jobs">
+    Learn how to submit circuits to backends
+  </Card>
+  <Card title="Circuit compilation" icon="gears" href="/concepts/compilation">
+    Optimize circuits for specific backends
+  </Card>
+</CardGroup>

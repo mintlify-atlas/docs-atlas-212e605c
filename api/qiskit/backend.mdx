@@ -1,0 +1,435 @@
+---
+title: SuperstaqBackend
+---
+
+The backend class representing a Superstaq target for circuit compilation and execution.
+
+## SuperstaqBackend
+
+This class represents a Superstaq backend.
+
+```python
+class SuperstaqBackend(qiskit.providers.BackendV2)
+```
+
+### Constructor
+
+```python
+SuperstaqBackend(
+    provider: SuperstaqProvider,
+    target: str
+)
+```
+
+<ParamField path="provider" type="SuperstaqProvider">
+Provider for a Superstaq backend.
+</ParamField>
+
+<ParamField path="target" type="str">
+A string containing the name of a target backend.
+</ParamField>
+
+### Properties
+
+#### max_circuits
+
+```python
+@property
+max_circuits -> int | None
+```
+
+The maximum number of circuits that can be submitted to this backend.
+
+#### num_qubits
+
+```python
+@property
+num_qubits -> int
+```
+
+The number of qubits available on this backend.
+
+#### coupling_map
+
+```python
+@property
+coupling_map -> qiskit.transpiler.CouplingMap | None
+```
+
+A coupling map generated from the two-qubit gates supported by this backend.
+
+#### target
+
+```python
+@property
+target -> qiskit.transpiler.Target
+```
+
+A `qiskit.transpiler.Target` object for this backend.
+
+### Methods
+
+#### run
+
+```python
+run(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    shots: int,
+    method: str | None = None,
+    verbatim: bool = False,
+    tag: Sequence[str] | str = (),
+    metadata: Mapping[str, object] | None = None,
+    **kwargs: Any
+) -> SuperstaqJob | SuperstaqJobV3
+```
+
+Runs circuits on the stored Superstaq backend.
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+A list of circuits to run.
+</ParamField>
+
+<ParamField path="shots" type="int">
+The number of execution shots (times to run the circuit).
+</ParamField>
+
+<ParamField path="method" type="str | None">
+An optional string that describes the execution method (e.g. 'dry-run', 'statevector', etc.).
+</ParamField>
+
+<ParamField path="verbatim" type="bool">
+Run the provided circuit(s) verbatim (i.e. without compilation). Defaults to False.
+</ParamField>
+
+<ParamField path="tag" type="Sequence[str] | str">
+An identifying tag (or list of tags) which can be used to find this job. Defaults to `()`.
+</ParamField>
+
+<ParamField path="metadata" type="Mapping[str, object] | None">
+Optional other data to store alongside the job.
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other optimization and execution parameters.
+</ParamField>
+
+**Returns:** A Superstaq job storing ID and other related info.
+
+#### compile
+
+```python
+compile(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    **kwargs: Any
+) -> CompilerOutput
+```
+
+Compiles the given circuit(s) to the backend's native gateset.
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The qiskit.QuantumCircuit(s) to compile.
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other desired compile options.
+</ParamField>
+
+**Returns:** A `CompilerOutput` object whose .circuit(s) attribute contains optimized compiled circuit(s).
+
+#### aqt_compile
+
+```python
+aqt_compile(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    *,
+    num_eca_circuits: int | None = None,
+    random_seed: int | None = None,
+    atol: float | None = None,
+    gate_defs: Mapping[str, str | npt.NDArray[np.number[Any]] | None] | None = None,
+    gateset: Mapping[str, Sequence[Sequence[int]]] | None = None,
+    pulses: object = None,
+    variables: object = None,
+    **kwargs: Any
+) -> CompilerOutput
+```
+
+Compiles and optimizes the given circuit(s) for the Advanced Quantum Testbed (AQT).
+
+AQT is a superconducting transmon quantum computing testbed at Lawrence Berkeley National Laboratory. More information can be found at https://aqt.lbl.gov.
+
+Specifying a nonzero value for `num_eca_circuits` enables compilation with Equivalent Circuit Averaging (ECA). See https://arxiv.org/abs/2111.04572 for a description of ECA.
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The circuit(s) to compile.
+</ParamField>
+
+<ParamField path="num_eca_circuits" type="int | None">
+Optional number of logically equivalent random circuits to generate from each input circuit for Equivalent Circuit Averaging (ECA).
+</ParamField>
+
+<ParamField path="random_seed" type="int | None">
+Optional seed used for approximate synthesis and ECA.
+</ParamField>
+
+<ParamField path="atol" type="float | None">
+An optional tolerance to use for approximate gate synthesis.
+</ParamField>
+
+<ParamField path="gate_defs" type="Mapping[str, str | npt.NDArray[np.number[Any]] | None] | None">
+An optional dictionary mapping names in `qtrl` configs to operations, where each operation can be either a unitary matrix or None.
+</ParamField>
+
+<ParamField path="gateset" type="Mapping[str, Sequence[Sequence[int]]] | None">
+Which gates to use for compilation. Should be a dictionary with entries in the form `gate_name: [[1, 2], [3, 4]]`, where the keys refer to specific gates, and the values indicate which qubit(s) they act upon.
+</ParamField>
+
+<ParamField path="pulses" type="object">
+Qtrl `PulseManager` or file path for pulse configuration.
+</ParamField>
+
+<ParamField path="variables" type="object">
+Qtrl `VariableManager` or file path for variable configuration.
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other desired compile options.
+</ParamField>
+
+**Returns:** Object whose .circuit(s) attribute contains the optimized circuits(s). Alternatively for ECA, an Object whose .circuits attribute is a list (or list of lists) of logically equivalent circuits. If `qtrl` is installed, the object's .seq attribute is a qtrl Sequence object containing pulse sequences for each compiled circuit.
+
+#### ibmq_compile
+
+```python
+ibmq_compile(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    *,
+    dynamical_decoupling: bool = True,
+    dd_strategy: str = "adaptive",
+    **kwargs: Any
+) -> CompilerOutput
+```
+
+Compiles and optimizes the given circuit(s) for IBMQ devices.
+
+Superstaq currently supports the following dynamical decoupling strategies:
+
+* **"standard"**: Places a single DD sequence in each idle window.
+* **"syncopated"**: Places DD pulses at fixed time intervals, alternating between pulses on neighboring qubits in order to mitigate parasitic ZZ coupling errors.
+* **"adaptive"** (default): Dynamically spaces DD pulses across idle windows with awareness of neighboring qubits to achieve the parasitic ZZ coupling mitigation of the "syncopated" strategy with fewer pulses and less discretization error.
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The qiskit.QuantumCircuit(s) to compile.
+</ParamField>
+
+<ParamField path="dynamical_decoupling" type="bool">
+Applies dynamical decoupling optimization to circuit(s). Defaults to True.
+</ParamField>
+
+<ParamField path="dd_strategy" type="str">
+Method to use for placing dynamical decoupling operations; should be either "standard", "syncopated", or "adaptive" (default).
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other desired compile options.
+</ParamField>
+
+**Returns:** Object whose .circuit(s) attribute contains the compiled circuits(s), and whose .pulse_gate_circuit(s) attribute contains the corresponding pulse schedule(s) (when available).
+
+#### qscout_compile
+
+```python
+qscout_compile(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    *,
+    mirror_swaps: bool = False,
+    base_entangling_gate: str = "xx",
+    num_qubits: int | None = None,
+    error_rates: SupportsItems[tuple[int, ...], float] | None = None,
+    atol: float = 1e-8,
+    atol_map: SupportsItems[tuple[int, ...], float] | None = None,
+    **kwargs: Any
+) -> CompilerOutput
+```
+
+Compiles and optimizes the given circuit(s) for the QSCOUT trapped-ion testbed at Sandia National Laboratories.
+
+Compiled circuits are returned as both `qiskit.QuantumCircuit` objects and corresponding Jaqal programs (strings).
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The circuit(s) to compile.
+</ParamField>
+
+<ParamField path="mirror_swaps" type="bool">
+Whether to use mirror swapping to reduce two-qubit gate overhead. Defaults to False.
+</ParamField>
+
+<ParamField path="base_entangling_gate" type="str">
+The base entangling gate to use ("xx", "zz", "sxx", or "szz"). Compilation with the "xx" and "zz" entangling bases will use arbitrary parameterized two-qubit interactions, while the "sxx" and "szz" bases will only use fixed maximally-entangling rotations. Defaults to "xx".
+</ParamField>
+
+<ParamField path="num_qubits" type="int | None">
+An optional number of qubits that should be present in the compiled circuit(s) and Jaqal program(s) (otherwise this will be determined from the input).
+</ParamField>
+
+<ParamField path="error_rates" type="SupportsItems[tuple[int, ...], float] | None">
+Optional dictionary assigning relative error rates to pairs of physical qubits, in the form `{<qubit_indices>: <error_rate>, ...}`.
+</ParamField>
+
+<ParamField path="atol" type="float">
+Optional tolerance (trace distance bound) used for approximate compilation. Defaults to 1e-8.
+</ParamField>
+
+<ParamField path="atol_map" type="SupportsItems[tuple[int, ...], float] | None">
+Optional dictionary assigning compilation tolerances to physical qubits, in the form `{<qubit_indices>: <atol>, ...}`.
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other desired qscout_compile options.
+</ParamField>
+
+**Returns:** Object whose .circuit(s) attribute contains optimized `qiskit.QuantumCircuit`(s), and `.jaqal_program` attribute contains the corresponding Jaqal program(s).
+
+#### cq_compile
+
+```python
+cq_compile(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    *,
+    grid_shape: tuple[int, int] | None = None,
+    control_radius: float = 1.0,
+    stripped_cz_rads: float = 0.0,
+    **kwargs: Any
+) -> CompilerOutput
+```
+
+Compiles and optimizes the given circuit(s) for CQ devices.
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The qiskit.QuantumCircuit(s) to compile.
+</ParamField>
+
+<ParamField path="grid_shape" type="tuple[int, int] | None">
+Optional fixed dimensions for the rectangular qubit grid (by default the actual qubit layout will be pulled from the hardware provider).
+</ParamField>
+
+<ParamField path="control_radius" type="float">
+The radius with which qubits remain connected (ie 1.0 indicates nearest neighbor connectivity). Defaults to 1.0.
+</ParamField>
+
+<ParamField path="stripped_cz_rads" type="float">
+The angle in radians of the stripped cz gate. Defaults to 0.0.
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other desired compile options.
+</ParamField>
+
+**Returns:** A CQ `CompilerOutput` object.
+
+#### target_info
+
+```python
+target_info() -> dict[str, Any]
+```
+
+Retrieves configuration information for this target.
+
+**Returns:** A dictionary containing various hardware parameters.
+
+#### resource_estimate
+
+```python
+resource_estimate(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]
+) -> gss.ResourceEstimate | list[gss.ResourceEstimate]
+```
+
+Generates resource estimates for qiskit circuit(s).
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The circuit(s) used during resource estimation.
+</ParamField>
+
+**Returns:** ResourceEstimate(s) containing resource costs (after compilation) for running circuit(s) on this backend.
+
+#### submit_aces
+
+```python
+submit_aces(
+    qubits: Sequence[int],
+    shots: int,
+    num_circuits: int,
+    mirror_depth: int,
+    extra_depth: int,
+    method: str | None = None,
+    noise: str | None = None,
+    error_prob: float | tuple[float, float, float] | None = None,
+    tag: str | None = None,
+    lifespan: int | None = None,
+    weights: Iterable[int] | None = None
+) -> str
+```
+
+Submits the jobs to characterize this target through the ACES protocol.
+
+The ACES protocol estimates gate eigenvalues for single-qubit and two-qubit gates. For details, see https://arxiv.org/abs/2108.05803.
+
+<ParamField path="qubits" type="Sequence[int]">
+A list with the qubit indices to characterize.
+</ParamField>
+
+<ParamField path="shots" type="int">
+How many shots to use per circuit submitted.
+</ParamField>
+
+<ParamField path="num_circuits" type="int">
+How many random circuits to use in the protocol.
+</ParamField>
+
+<ParamField path="mirror_depth" type="int">
+The half-depth of the mirror portion of the random circuits.
+</ParamField>
+
+<ParamField path="extra_depth" type="int">
+The depth of the fully random portion of the random circuits.
+</ParamField>
+
+<ParamField path="method" type="str | None">
+Which type of method to execute the circuits with.
+</ParamField>
+
+<ParamField path="noise" type="str | None">
+Noise model to simulate the protocol with. Valid strings are "symmetric_depolarize", "phase_flip", "bit_flip" and "asymmetric_depolarize".
+</ParamField>
+
+<ParamField path="error_prob" type="float | tuple[float, float, float] | None">
+The error probabilities if a string was passed to `noise`. For "asymmetric_depolarize", `error_prob` will be a three-tuple with the error rates for the X, Y, Z gates in that order. For the other channels, `error_prob` is one number less than or equal to 1.
+</ParamField>
+
+<ParamField path="tag" type="str | None">
+Tag for all jobs submitted for this protocol.
+</ParamField>
+
+<ParamField path="lifespan" type="int | None">
+How long to store the jobs submitted for in days (only works with right permissions).
+</ParamField>
+
+<ParamField path="weights" type="Iterable[int] | None">
+Valid Pauli string weights for probes.
+</ParamField>
+
+**Returns:** A string with the job id for the ACES job created.
+
+#### process_aces
+
+```python
+process_aces(job_id: str) -> list[float]
+```
+
+Process a job submitted through `submit_aces`.
+
+<ParamField path="job_id" type="str">
+The job id returned by `submit_aces`.
+</ParamField>
+
+**Returns:** The estimated eigenvalues.

@@ -1,0 +1,354 @@
+---
+title: Benchmarks
+description: Available benchmark classes in Supermarq
+---
+
+## Overview
+
+Supermarq provides a collection of quantum benchmarks that test different aspects of quantum device performance. Each benchmark inherits from the base `Benchmark` class and implements specific quantum applications.
+
+## Available benchmarks
+
+<CardGroup cols={2}>
+  <Card title="GHZ" icon="atom" href="#ghz">
+    GHZ state preparation benchmark
+  </Card>
+  <Card title="Bit code" icon="shield" href="#bitcode">
+    Bit-flip error correcting code
+  </Card>
+  <Card title="Phase code" icon="wave-square" href="#phasecode">
+    Phase-flip error correcting code
+  </Card>
+  <Card title="Mermin-Bell" icon="network-wired" href="#merminbell">
+    Bell inequality test benchmark
+  </Card>
+  <Card title="Hamiltonian simulation" icon="magnet" href="#hamiltoniansimulation">
+    Transverse field Ising model simulation
+  </Card>
+  <Card title="QAOA vanilla proxy" icon="chart-network" href="#qaoavanillaproxy">
+    QAOA MaxCut on Sherrington-Kirkpatrick model
+  </Card>
+  <Card title="QAOA fermionic swap proxy" icon="arrows-rotate" href="#qaoafermionicswapproxy">
+    QAOA with fermionic swap network
+  </Card>
+  <Card title="VQE proxy" icon="atom" href="#vqeproxy">
+    Variational quantum eigensolver proxy
+  </Card>
+</CardGroup>
+
+## GHZ
+
+GHZ state preparation benchmark parameterized by the number of qubits.
+
+```python
+class GHZ(Benchmark):
+    def __init__(self, num_qubits: int, method: str = "ladder")
+```
+
+### Parameters
+
+<ParamField path="num_qubits" type="int" required>
+  Number of qubits in GHZ circuit
+</ParamField>
+
+<ParamField path="method" type="str" default="ladder">
+  Circuit construction method. Must be "ladder", "star", or "logdepth":
+  - **ladder**: Linear-depth CNOT ladder, appropriate for nearest-neighbor architectures
+  - **star**: Linear depth with all CNOTs sharing the same control qubit
+  - **logdepth**: Log-depth CNOT fanout circuit
+</ParamField>
+
+### Scoring
+
+Device performance is based on the Hellinger fidelity between the experimental and ideal probability distributions. The ideal distribution is 50% probability of measuring the all-zero state and 50% probability of measuring the all-one state.
+
+### Example
+
+```python
+import supermarq
+
+# Create a 5-qubit GHZ benchmark with ladder method
+benchmark = supermarq.GHZ(num_qubits=5, method="ladder")
+circuit = benchmark.circuit()
+```
+
+## BitCode
+
+Creates a circuit for syndrome measurement in a bit-flip error correcting code.
+
+```python
+class BitCode(Benchmark):
+    def __init__(self, num_data_qubits: int, num_rounds: int, bit_state: list[int])
+```
+
+### Parameters
+
+<ParamField path="num_data_qubits" type="int" required>
+  The number of data qubits
+</ParamField>
+
+<ParamField path="num_rounds" type="int" required>
+  The number of measurement rounds
+</ParamField>
+
+<ParamField path="bit_state" type="list[int]" required>
+  A list denoting the state to initialize each data qubit to. Must contain only 0 or 1 values and have length equal to `num_data_qubits`
+</ParamField>
+
+### Scoring
+
+Device performance is given by the Hellinger fidelity between the experimental results and the ideal distribution. The ideal is known based on the `bit_state` parameter.
+
+### Example
+
+```python
+import supermarq
+
+# Create a bit code benchmark with 4 data qubits
+benchmark = supermarq.bit_code.BitCode(
+    num_data_qubits=4,
+    num_rounds=3,
+    bit_state=[0, 1, 0, 1]
+)
+circuit = benchmark.circuit()
+```
+
+## PhaseCode
+
+Creates a circuit for syndrome measurement in a phase-flip error correcting code.
+
+```python
+class PhaseCode(Benchmark):
+    def __init__(self, num_data_qubits: int, num_rounds: int, phase_state: list[int])
+```
+
+### Parameters
+
+<ParamField path="num_data_qubits" type="int" required>
+  The number of data qubits
+</ParamField>
+
+<ParamField path="num_rounds" type="int" required>
+  The number of measurement rounds
+</ParamField>
+
+<ParamField path="phase_state" type="list[int]" required>
+  A list of zeros and ones denoting the state to initialize each data qubit to. Currently just + or - states (0 → +, 1 → -). Must have length equal to `num_data_qubits`
+</ParamField>
+
+### Scoring
+
+Device performance is given by the Hellinger fidelity between the experimental results and the ideal distribution. The ideal is known based on the `phase_state` parameter.
+
+### Example
+
+```python
+import supermarq
+
+# Create a phase code benchmark with 5 data qubits
+benchmark = supermarq.phase_code.PhaseCode(
+    num_data_qubits=5,
+    num_rounds=2,
+    phase_state=[0, 1, 1, 0, 1]
+)
+circuit = benchmark.circuit()
+```
+
+## MerminBell
+
+The Mermin-Bell benchmark tests a quantum computer's ability to exploit purely quantum phenomena such as superposition and entanglement. It is based on the famous Bell-inequality tests of locality.
+
+```python
+class MerminBell(Benchmark):
+    def __init__(self, num_qubits: int)
+```
+
+### Parameters
+
+<ParamField path="num_qubits" type="int" required>
+  The number of qubits
+</ParamField>
+
+### Scoring
+
+Performance is based on a QPU's ability to prepare a GHZ state and measure the Mermin operator. The score is computed from the expectation value of the Mermin operator.
+
+### Example
+
+```python
+import supermarq
+
+# Create a 4-qubit Mermin-Bell benchmark
+benchmark = supermarq.mermin_bell.MerminBell(num_qubits=4)
+circuit = benchmark.circuit()
+```
+
+## HamiltonianSimulation
+
+Quantum benchmark focused on the ability to simulate 1D Transverse Field Ising Models (TFIM) of variable length.
+
+```python
+class HamiltonianSimulation(Benchmark):
+    def __init__(self, num_qubits: int, time_step: int = 1, total_time: int = 1)
+```
+
+### Parameters
+
+<ParamField path="num_qubits" type="int" required>
+  Size of the TFIM chain, equivalent to the number of qubits
+</ParamField>
+
+<ParamField path="time_step" type="int" default={1}>
+  Size of the timestep in attoseconds
+</ParamField>
+
+<ParamField path="total_time" type="int" default={1}>
+  Total simulation time of the TFIM chain in attoseconds
+</ParamField>
+
+### Scoring
+
+Device performance is based on how closely the experimentally obtained average magnetization (along the Z-axis) matches the noiseless value. The 1D TFIM is efficiently simulatable with classical algorithms, making the noiseless computation scalable.
+
+### Example
+
+```python
+import supermarq
+
+# Create a Hamiltonian simulation benchmark
+benchmark = supermarq.hamiltonian_simulation.HamiltonianSimulation(
+    num_qubits=6,
+    time_step=2,
+    total_time=10
+)
+circuit = benchmark.circuit()
+```
+
+## QAOAVanillaProxy
+
+Proxy of a full Quantum Approximate Optimization Algorithm (QAOA) benchmark targeting MaxCut on a Sherrington-Kirkpatrick (SK) model.
+
+```python
+class QAOAVanillaProxy(Benchmark):
+    def __init__(self, num_qubits: int)
+```
+
+### Parameters
+
+<ParamField path="num_qubits" type="int" required>
+  The number of nodes (qubits) within the SK graph
+</ParamField>
+
+### Characteristics
+
+The ansatz structure requires O(N²) interactions between every pair of qubits, making it well-suited to QPU architectures which support all-to-all connectivity. The benchmark is restricted to p=1 depth to keep classical simulation scalable.
+
+When created, the ansatz parameters are initialized by:
+1. Generating a random instance of an SK graph
+2. Finding approximately optimal angles (rather than random values)
+
+### Scoring
+
+Device performance is given by how closely the experimental expectation value matches the ideal expectation value obtained via noiseless simulation.
+
+### Example
+
+```python
+import supermarq
+
+# Create a QAOA vanilla proxy benchmark
+benchmark = supermarq.qaoa_vanilla_proxy.QAOAVanillaProxy(num_qubits=6)
+circuit = benchmark.circuit()
+```
+
+## QAOAFermionicSwapProxy
+
+Proxy of a full QAOA benchmark targeting MaxCut on a Sherrington-Kirkpatrick (SK) model using the fermionic swap network.
+
+```python
+class QAOAFermionicSwapProxy(QAOAVanillaProxy):
+    def __init__(self, num_qubits: int)
+```
+
+### Parameters
+
+<ParamField path="num_qubits" type="int" required>
+  The number of nodes (qubits) within the SK graph
+</ParamField>
+
+### Characteristics
+
+The ansatz utilizes the fermionic SWAP network which performs all required O(N²) interactions in linear circuit depth. This ansatz is especially well-suited to QPU architectures which only support nearest-neighbor connectivity.
+
+### Scoring
+
+Device performance is given by the Hellinger fidelity between the experimental output distribution and the true distribution obtained via scalable, classical simulation.
+
+### Example
+
+```python
+import supermarq
+
+# Create a QAOA fermionic swap proxy benchmark
+benchmark = supermarq.qaoa_fermionic_swap_proxy.QAOAFermionicSwapProxy(num_qubits=8)
+circuit = benchmark.circuit()
+```
+
+## VQEProxy
+
+Proxy benchmark of a full VQE application that targets a single iteration of the whole variational optimization.
+
+```python
+class VQEProxy(Benchmark):
+    def __init__(self, num_qubits: int, num_layers: int = 1)
+```
+
+### Parameters
+
+<ParamField path="num_qubits" type="int" required>
+  The number of qubits
+</ParamField>
+
+<ParamField path="num_layers" type="int" default={1}>
+  The number of ansatz layers
+</ParamField>
+
+### Characteristics
+
+The benchmark targets a transverse-field Ising model (TFIM) Hamiltonian. For each value of n, the ansatz is classically optimized, 3 iterations near convergence are sampled, and the sampled parameters are used to execute circuits on the QPU.
+
+### Circuit generation
+
+The `circuit()` method returns a **list of two circuits**:
+1. The ansatz measured in the Z basis
+2. The ansatz measured in the X basis
+
+Both circuits are required to compute the full energy expectation value.
+
+### Scoring
+
+The score is computed by comparing the average energy measured by the experiments to the ideal value obtained via noiseless simulation.
+
+<Warning>
+  The `score()` method expects a **list of two dictionaries** (counts from both circuits) in the order returned by `circuit()`.
+</Warning>
+
+### Example
+
+```python
+import supermarq
+
+# Create a VQE proxy benchmark
+benchmark = supermarq.vqe_proxy.VQEProxy(num_qubits=4, num_layers=2)
+
+# Get both circuits
+circuits = benchmark.circuit()  # Returns [z_circuit, x_circuit]
+z_circuit, x_circuit = circuits
+
+# Run both circuits
+z_counts = run_circuit(z_circuit)
+x_counts = run_circuit(x_circuit)
+
+# Compute score with both measurement results
+score = benchmark.score([z_counts, x_counts])
+```

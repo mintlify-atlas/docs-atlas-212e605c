@@ -1,0 +1,243 @@
+---
+title: Sampler
+description: API reference for the Cirq Superstaq Sampler class
+---
+
+The `Sampler` class provides a Cirq-compatible sampler interface for running circuits on Superstaq.
+
+## Sampler class
+
+A sampler that works against the Superstaq API, implementing the `cirq.Sampler` interface.
+
+### Constructor
+
+```python
+Sampler(service: Service, target: str)
+```
+
+<ParamField path="service" type="Service">
+  The Service instance used to create this sampler.
+</ParamField>
+
+<ParamField path="target" type="str">
+  The backend device or simulator on which to run jobs.
+</ParamField>
+
+<Note>
+  Users should not call this constructor directly. Use `service.sampler()` instead.
+</Note>
+
+## Methods
+
+### run_sweep
+
+Runs a parameter sweep for the given circuit.
+
+```python
+run_sweep(
+    program: cirq.AbstractCircuit,
+    params: cirq.Sweepable,
+    repetitions: int = 1
+) -> list[cirq.ResultDict]
+```
+
+<ParamField path="program" type="cirq.AbstractCircuit">
+  The circuit to sample from.
+</ParamField>
+
+<ParamField path="params" type="cirq.Sweepable">
+  The parameters to run with the program. Can be a single ParamResolver or multiple resolvers.
+</ParamField>
+
+<ParamField path="repetitions" type="int" default="1">
+  The number of times to sample.
+</ParamField>
+
+<ResponseField name="return" type="list[cirq.ResultDict]">
+  A list of Cirq results, one for each parameter resolver.
+</ResponseField>
+
+<Note>
+  This creates jobs for each sweep parameter and blocks until all jobs are complete.
+</Note>
+
+## Example usage
+
+<CodeGroup>
+
+```python Basic usage
+import cirq
+import cirq_superstaq as css
+
+# Initialize service and get sampler
+service = css.Service(api_key="YOUR_API_KEY")
+sampler = service.sampler("ibmq_fez_qpu")
+
+# Create a circuit
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0, key='q0'),
+    cirq.measure(q1, key='q1')
+)
+
+# Sample the circuit
+result = sampler.sample(circuit, repetitions=100)
+print(result)
+```
+
+```python Parameter sweep
+import cirq
+import cirq_superstaq as css
+import numpy as np
+
+service = css.Service(api_key="YOUR_API_KEY")
+sampler = service.sampler("ss_unconstrained_simulator")
+
+# Create a parameterized circuit
+q = cirq.LineQubit(0)
+theta = cirq.Symbol('theta')
+
+circuit = cirq.Circuit(
+    cirq.ry(theta)(q),
+    cirq.measure(q, key='result')
+)
+
+# Define parameter sweep
+params = [{'theta': angle} for angle in np.linspace(0, 2*np.pi, 10)]
+
+# Run sweep
+results = sampler.run_sweep(
+    circuit,
+    params=params,
+    repetitions=1000
+)
+
+# Analyze results
+for i, result in enumerate(results):
+    counts = result.histogram(key='result')
+    print(f"Angle {params[i]['theta']:.2f}: {counts}")
+```
+
+```python Run method
+import cirq
+import cirq_superstaq as css
+
+service = css.Service(api_key="YOUR_API_KEY")
+sampler = service.sampler("ss_unconstrained_simulator")
+
+# Create circuit
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0, q1, key='result')
+)
+
+# Use run method (inherited from cirq.Sampler)
+result = sampler.run(circuit, repetitions=5)
+print(result)
+
+# Output example:
+#    result
+# 0      00
+# 1      11
+# 2      00
+# 3      11
+# 4      00
+```
+
+</CodeGroup>
+
+## Cirq sampler interface
+
+The `Sampler` class inherits from `cirq.Sampler` and provides the following methods:
+
+### sample
+
+Samples from the given circuit.
+
+```python
+sample(
+    program: cirq.AbstractCircuit,
+    repetitions: int = 1,
+    params: cirq.Sweepable | None = None
+) -> pd.DataFrame
+```
+
+<ParamField path="program" type="cirq.AbstractCircuit">
+  The circuit to sample.
+</ParamField>
+
+<ParamField path="repetitions" type="int" default="1">
+  Number of samples to take.
+</ParamField>
+
+<ParamField path="params" type="cirq.Sweepable | None">
+  Optional parameters to resolve in the circuit.
+</ParamField>
+
+<ResponseField name="return" type="pd.DataFrame">
+  Pandas DataFrame with measurement results.
+</ResponseField>
+
+### run
+
+Runs the supplied Circuit or Schedule.
+
+```python
+run(
+    program: cirq.AbstractCircuit,
+    param_resolver: cirq.ParamResolverOrSimilarType = None,
+    repetitions: int = 1
+) -> cirq.Result
+```
+
+<ParamField path="program" type="cirq.AbstractCircuit">
+  The circuit to execute.
+</ParamField>
+
+<ParamField path="param_resolver" type="cirq.ParamResolverOrSimilarType">
+  Parameters to resolve in the circuit.
+</ParamField>
+
+<ParamField path="repetitions" type="int" default="1">
+  Number of times to execute the circuit.
+</ParamField>
+
+<ResponseField name="return" type="cirq.Result">
+  Result containing the measurement outcomes.
+</ResponseField>
+
+## Integration with Cirq
+
+The Sampler integrates seamlessly with Cirq's ecosystem:
+
+```python
+import cirq
+import cirq_superstaq as css
+
+service = css.Service(api_key="YOUR_API_KEY")
+sampler = service.sampler("ss_unconstrained_simulator")
+
+# Works with all Cirq circuit operations
+q = cirq.LineQubit.range(3)
+circuit = cirq.Circuit(
+    cirq.H.on_each(*q),
+    cirq.CNOT(q[0], q[1]),
+    cirq.CNOT(q[1], q[2]),
+    cirq.measure_each(*q)
+)
+
+# Use standard Cirq sampler methods
+results = sampler.sample(circuit, repetitions=1000)
+print(results)
+```
+
+## Notes
+
+- The sampler automatically handles circuit serialization and job submission to Superstaq
+- Results are returned as standard Cirq `ResultDict` objects
+- Parameter sweeps create separate jobs for each parameter configuration
+- The sampler blocks until all jobs in a sweep are complete

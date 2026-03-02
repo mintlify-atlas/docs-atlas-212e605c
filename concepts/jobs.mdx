@@ -1,0 +1,345 @@
+---
+title: Job submission and lifecycle
+description: Understanding how to submit, track, and retrieve results from quantum jobs
+---
+
+Jobs represent the execution of quantum circuits on a backend. Superstaq manages the entire lifecycle from submission to result retrieval.
+
+## Creating a job
+
+Submit circuits to a backend by creating a job:
+
+<CodeGroup>
+```python Qiskit
+import qiskit_superstaq as qss
+from qiskit import QuantumCircuit
+
+provider = qss.SuperstaqProvider(api_key="YOUR_API_KEY")
+backend = provider.get_backend("ibmq_jakarta_qpu")
+
+# Create a simple circuit
+circuit = QuantumCircuit(2)
+circuit.h(0)
+circuit.cx(0, 1)
+circuit.measure_all()
+
+# Submit the job
+job = backend.run(circuit, shots=1000)
+print(f"Job ID: {job.job_id()}")
+```
+
+```python Cirq
+import cirq_superstaq as css
+import cirq
+
+service = css.Service(api_key="YOUR_API_KEY")
+
+# Create a simple circuit
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0, q1, key='result')
+)
+
+# Submit the job
+job = service.create_job(
+    circuit,
+    repetitions=1000,
+    target="ibmq_jakarta_qpu"
+)
+print(f"Job ID: {job.job_id()}")
+```
+</CodeGroup>
+
+## Job parameters
+
+Control job execution with these key parameters:
+
+### Repetitions (shots)
+
+The number of times to execute the circuit:
+
+```python
+job = backend.run(circuit, shots=2000)
+```
+
+<Note>
+More shots improve statistical accuracy but increase execution time and cost.
+</Note>
+
+### Execution method
+
+Specify how the circuit should be executed:
+
+```python
+# Dry run - validate without executing
+job = service.create_job(circuit, repetitions=1000, method="dry-run")
+
+# Statevector simulation
+job = service.create_job(circuit, repetitions=1, method="statevector")
+```
+
+### Verbatim mode
+
+Run circuits without automatic compilation:
+
+```python
+job = backend.run(circuit, shots=1000, verbatim=True)
+```
+
+<Warning>
+Verbatim mode bypasses optimization. Use only when you've manually compiled circuits for the target backend.
+</Warning>
+
+### Tags and metadata
+
+Organize and track jobs with custom tags:
+
+```python
+job = service.create_job(
+    circuit,
+    repetitions=1000,
+    target="ibmq_jakarta_qpu",
+    tag=["experiment-1", "bell-state"],
+    metadata={"experiment_name": "EPR test", "researcher": "Alice"}
+)
+```
+
+## Job lifecycle
+
+Jobs progress through several states:
+
+<Steps>
+  <Step title="Submitted">
+    Job has been created and sent to Superstaq
+  </Step>
+  
+  <Step title="Queued">
+    Job is waiting in the execution queue
+  </Step>
+  
+  <Step title="Running">
+    Circuit is actively executing on the backend
+  </Step>
+  
+  <Step title="Done">
+    Job completed successfully and results are available
+  </Step>
+</Steps>
+
+Jobs can also transition to terminal states:
+
+- **Cancelled**: Job was cancelled before completion
+- **Failed**: Job encountered an error during execution
+
+## Checking job status
+
+Monitor job progress:
+
+```python
+status = job.status()
+print(f"Job status: {status}")
+
+# Wait for completion
+while status not in job.TERMINAL_STATES:
+    time.sleep(5)
+    status = job.status()
+    print(f"Current status: {status}")
+```
+
+<Tip>
+The `.result()` method automatically polls the job status and waits for completion:
+```python
+# This blocks until the job finishes
+result = job.result(timeout_seconds=3600)
+```
+</Tip>
+
+## Retrieving results
+
+Once a job completes, retrieve the measurement results:
+
+<CodeGroup>
+```python Qiskit
+# Get full result object
+result = job.result()
+
+# Access counts
+counts = result.get_counts()
+print(counts)
+# Output: {'00': 523, '11': 477}
+```
+
+```python Cirq
+# Get counts directly
+counts = job.counts()
+print(counts)
+# Output: {'00': 523, '11': 477}
+```
+</CodeGroup>
+
+### Partial results
+
+When submitting multiple circuits, retrieve results by index:
+
+```python
+# Submit multiple circuits
+job = backend.run([circuit1, circuit2, circuit3], shots=1000)
+
+# Get results for specific circuit
+counts_0 = job.counts(index=0)
+counts_1 = job.counts(index=1)
+
+# Or get all results
+all_counts = job.counts()  # Returns list of count dictionaries
+```
+
+### Marginal counts
+
+Get results for specific qubits only:
+
+```python
+# Only measure qubits 0 and 2
+counts = job.counts(qubit_indices=[0, 2])
+```
+
+## Retrieving circuits
+
+Access both input and compiled circuits from a job:
+
+```python
+# Get the original input circuit
+input_circuit = job.input_circuits()
+
+# Get the compiled circuit that actually ran
+compiled_circuit = job.compiled_circuits()
+
+print(f"Original depth: {input_circuit.depth()}")
+print(f"Compiled depth: {compiled_circuit.depth()}")
+```
+
+<Info>
+Compiled circuits show the transformations Superstaq applied to optimize for the target backend.
+</Info>
+
+## Job retrieval
+
+Retrieve previously submitted jobs using their ID:
+
+<CodeGroup>
+```python Qiskit
+provider = qss.SuperstaqProvider(api_key="YOUR_API_KEY")
+
+# Get job by ID
+job_id = "550e8400-e29b-41d4-a716-446655440000"
+job = provider.get_job(job_id)
+
+status = job.status()
+print(f"Retrieved job status: {status}")
+```
+
+```python Cirq
+service = css.Service(api_key="YOUR_API_KEY")
+
+# Get job by ID  
+job_id = "550e8400-e29b-41d4-a716-446655440000"
+job = service.get_job(job_id)
+
+counts = job.counts()
+print(counts)
+```
+</CodeGroup>
+
+## Cancelling jobs
+
+Cancel jobs that are queued or running:
+
+```python
+job.cancel()
+print(f"Job cancelled: {job.status()}")
+```
+
+<Note>
+Jobs can only be cancelled if they haven't reached a terminal state. Once a job is done, failed, or already cancelled, it cannot be modified.
+</Note>
+
+## Batch jobs
+
+Superstaq automatically batches multiple circuits:
+
+```python
+circuits = [circuit1, circuit2, circuit3, circuit4, circuit5]
+
+# All circuits submitted as a single job
+job = backend.run(circuits, shots=1000)
+
+# Job ID may represent multiple sub-jobs
+print(f"Job ID: {job.job_id()}")
+
+# Check status of specific circuit
+status_2 = job.status(index=2)
+```
+
+### Sub-job access
+
+Access individual circuits in a batch:
+
+```python
+# Get results for third circuit only
+count_3 = job.counts(index=2)
+
+# Get compiled circuit for second circuit
+compiled_2 = job.compiled_circuits(index=1)
+```
+
+## Error handling
+
+Handle common job errors:
+
+```python
+try:
+    result = job.result(timeout_seconds=1800)
+except TimeoutError:
+    print("Job did not complete within timeout")
+    print(f"Final status: {job.status()}")
+except gss.SuperstaqUnsuccessfulJobException as e:
+    print(f"Job failed: {e}")
+    # Check if any circuits succeeded
+    for i in range(num_circuits):
+        print(f"Circuit {i} status: {job.status(index=i)}")
+```
+
+## Job information
+
+Access detailed job metadata:
+
+```python
+# Get target backend
+target = job.target()
+print(f"Executed on: {target}")
+
+# Get number of qubits used
+num_qubits = job.num_qubits()
+print(f"Circuit uses {num_qubits} qubits")
+
+# Get number of shots
+shots = job.repetitions()
+print(f"Executed {shots} times")
+
+# For v0.3.0 API: access tags and metadata
+if hasattr(job, 'tags'):
+    print(f"Tags: {job.tags}")
+    print(f"Metadata: {job.metadata}")
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Circuit compilation" icon="gears" href="/concepts/compilation">
+    Optimize circuits before submission
+  </Card>
+  <Card title="Quantum backends" icon="server" href="/concepts/backends">
+    Learn about available hardware targets
+  </Card>
+</CardGroup>

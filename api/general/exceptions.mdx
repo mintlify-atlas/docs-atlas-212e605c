@@ -1,0 +1,225 @@
+---
+title: Exceptions
+description: Exception classes for error handling in Superstaq
+---
+
+The `general_superstaq` package defines several custom exception classes for handling errors that occur when interacting with the Superstaq API.
+
+## SuperstaqException
+
+Base exception class for errors coming from Superstaq's API.
+
+### Constructor
+
+<ParamField path="message" type="str" required>
+  A message corresponding to the error.
+</ParamField>
+
+```python
+import general_superstaq as gss
+
+raise gss.SuperstaqException("An error occurred")
+```
+
+### Attributes
+
+<ResponseField name="message" type="str">
+  The error message.
+</ResponseField>
+
+## SuperstaqServerException
+
+Exception for non-retriable server-side errors. This exception is raised when the server returns an error status code that indicates the request should not be retried.
+
+### Constructor
+
+<ParamField path="message" type="str" required>
+  The message to be displayed for this exception.
+</ParamField>
+
+<ParamField path="status_code" type="int" default="400">
+  An HTTP status code, if coming from an HTTP response with a failing status.
+</ParamField>
+
+<ParamField path="contact_info" type="bool" default="False">
+  Whether or not to display contact information in the error message.
+</ParamField>
+
+```python
+import general_superstaq as gss
+
+raise gss.SuperstaqServerException(
+    "Invalid target specified",
+    status_code=400,
+    contact_info=True
+)
+```
+
+### Attributes
+
+<ResponseField name="message" type="str">
+  The error message, including status code and optionally contact information.
+</ResponseField>
+
+<ResponseField name="status_code" type="int">
+  The HTTP status code associated with the error.
+</ResponseField>
+
+### Error message format
+
+When `contact_info=True`, the exception message includes:
+- The base error message
+- Status code information
+- Contact email: superstaq@infleqtion.com
+- Slack workspace invitation link
+
+```python
+try:
+    service.get_balance()
+except gss.SuperstaqServerException as e:
+    print(f"Status code: {e.status_code}")
+    print(f"Message: {e.message}")
+```
+
+## SuperstaqUnsuccessfulJobException
+
+Exception for attempting to get info about an unsuccessful job. This exception occurs when a job has been cancelled, deleted, or failed, and information about this job is attempted to be accessed.
+
+### Constructor
+
+<ParamField path="job_id" type="str" required>
+  The job identifier of the unsuccessful job.
+</ParamField>
+
+<ParamField path="status" type="str" required>
+  The status of the unsuccessful job (e.g., "cancelled", "failed", "deleted").
+</ParamField>
+
+```python
+import general_superstaq as gss
+
+raise gss.SuperstaqUnsuccessfulJobException(
+    job_id="12345-abcde",
+    status="cancelled"
+)
+```
+
+### Attributes
+
+<ResponseField name="message" type="str">
+  Formatted message: "Job {job_id} terminated with status {status}."
+</ResponseField>
+
+### Example usage
+
+```python
+import general_superstaq as gss
+
+try:
+    job = service.get_job("failed-job-id")
+    results = job.counts()
+except gss.SuperstaqUnsuccessfulJobException as e:
+    print(f"Cannot access job: {e.message}")
+    # Output: "Cannot access job: Job failed-job-id terminated with status failed."
+```
+
+## SuperstaqWarning
+
+A warning issued by the server. This is a warning class rather than an exception, used for non-critical issues returned by the API.
+
+### Constructor
+
+<ParamField path="message" type="str" required>
+  The warning message.
+</ParamField>
+
+```python
+import warnings
+import general_superstaq as gss
+
+warnings.warn("This feature is deprecated", gss.SuperstaqWarning)
+```
+
+### Example usage
+
+Warnings are typically raised automatically by the client when the server returns warning messages:
+
+```python
+import general_superstaq as gss
+import warnings
+
+# Catch Superstaq warnings
+with warnings.catch_warnings(record=True) as w:
+    warnings.simplefilter("always")
+    service = gss.Service()
+    # ... API calls that may trigger warnings ...
+    
+    for warning in w:
+        if issubclass(warning.category, gss.SuperstaqWarning):
+            print(f"Superstaq warning: {warning.message}")
+```
+
+## Exception hierarchy
+
+The exception hierarchy is as follows:
+
+```
+Exception
+└── SuperstaqException
+    ├── SuperstaqServerException
+    └── SuperstaqUnsuccessfulJobException
+
+Warning
+└── SuperstaqWarning
+```
+
+## Common error scenarios
+
+### Authentication errors
+
+```python
+import general_superstaq as gss
+
+try:
+    service = gss.Service(api_key="invalid_key")
+    service.get_balance()
+except gss.SuperstaqServerException as e:
+    if e.status_code == 401:
+        print("Authentication failed. Check your API key.")
+```
+
+### Job submission errors
+
+```python
+import general_superstaq as gss
+
+try:
+    qubo = {('a',): 2, ('b',): -1}
+    service.submit_qubo(qubo, target="invalid_target")
+except gss.SuperstaqServerException as e:
+    print(f"Job submission failed: {e.message}")
+```
+
+### Cancelled job access
+
+```python
+import general_superstaq as gss
+
+try:
+    job = service.get_job("cancelled-job-id")
+    results = job.counts()
+except gss.SuperstaqUnsuccessfulJobException as e:
+    print(f"Job was cancelled: {e.message}")
+```
+
+### Balance limit errors
+
+```python
+import general_superstaq as gss
+
+try:
+    service.update_user_balance(email="user@example.com", balance=3000.0)
+except gss.SuperstaqException as e:
+    print(f"Balance update failed: {e.message}")
+    # Output: "Requested balance 3000.0 exceeds limit of 2000.0."
+```

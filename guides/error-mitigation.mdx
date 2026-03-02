@@ -1,0 +1,545 @@
+---
+title: Error mitigation strategies
+description: Advanced techniques for reducing quantum errors and improving result accuracy in Superstaq
+---
+
+Superstaq provides multiple error mitigation strategies to improve the accuracy of quantum computations on noisy intermediate-scale quantum (NISQ) devices.
+
+## Overview
+
+Error mitigation techniques in Superstaq:
+
+- Dynamical decoupling for coherent error suppression
+- Equivalent Circuit Averaging (ECA) for systematic error reduction
+- Measurement error mitigation
+- Approximate synthesis for gate error reduction
+- Characterization protocols (ACES, Cycle Benchmarking)
+
+## Dynamical decoupling
+
+Dynamical decoupling (DD) inserts pulse sequences during idle periods to suppress decoherence errors.
+
+### IBM Quantum DD strategies
+
+Superstaq implements three DD strategies optimized for superconducting qubits:
+
+<Tabs>
+  <Tab title="Qiskit">
+    ```python
+    import qiskit_superstaq as qss
+    import qiskit
+    
+    provider = qss.SuperstaqProvider()
+    
+    qc = qiskit.QuantumCircuit(3)
+    qc.h(0)
+    qc.cx(0, 1)
+    qc.cx(1, 2)
+    qc.barrier()
+    qc.measure_all()
+    
+    # Standard DD: Single sequence per idle window
+    compiled_standard = provider.ibmq_compile(
+        circuits=qc,
+        target="ibmq_fez_qpu",
+        dynamical_decoupling=True,
+        dd_strategy="standard"
+    )
+    
+    # Syncopated DD: Fixed intervals, alternating pulses
+    compiled_syncopated = provider.ibmq_compile(
+        circuits=qc,
+        target="ibmq_fez_qpu",
+        dynamical_decoupling=True,
+        dd_strategy="syncopated"
+    )
+    
+    # Adaptive DD: Dynamic spacing with neighbor awareness
+    compiled_adaptive = provider.ibmq_compile(
+        circuits=qc,
+        target="ibmq_fez_qpu",
+        dynamical_decoupling=True,
+        dd_strategy="adaptive"  # Default and recommended
+    )
+    ```
+  </Tab>
+  
+  <Tab title="Cirq">
+    ```python
+    import cirq_superstaq as css
+    import cirq
+    
+    service = css.Service()
+    
+    qubits = cirq.LineQubit.range(3)
+    circuit = cirq.Circuit(
+        cirq.H(qubits[0]),
+        cirq.CNOT(qubits[0], qubits[1]),
+        cirq.CNOT(qubits[1], qubits[2]),
+        cirq.measure(*qubits)
+    )
+    
+    # Adaptive DD (recommended)
+    compiled = service.ibmq_compile(
+        circuits=circuit,
+        target="ibmq_fez_qpu",
+        dynamical_decoupling=True,
+        dd_strategy="adaptive"
+    )
+    ```
+  </Tab>
+</Tabs>
+
+**DD Strategy comparison:**
+
+| Strategy | Pulse overhead | ZZ mitigation | Discretization error |
+|----------|---------------|---------------|---------------------|
+| Standard | Low | None | Moderate |
+| Syncopated | High | Excellent | High |
+| Adaptive | Moderate | Excellent | Low |
+
+<Note>
+  Adaptive DD provides the best balance between error mitigation and circuit overhead.
+</Note>
+
+### How DD works
+
+Dynamical decoupling applies sequences of pulses (typically X or Y gates) during idle times to:
+
+1. Average out low-frequency noise
+2. Suppress dephasing errors
+3. Mitigate crosstalk from neighboring qubits
+
+```python
+# Example showing DD insertion
+import qiskit_superstaq as qss
+import qiskit
+
+provider = qss.SuperstaqProvider()
+
+# Circuit with idle periods
+qc = qiskit.QuantumCircuit(2)
+qc.h(0)
+qc.barrier()  # Idle time
+qc.cx(0, 1)
+qc.barrier()  # Idle time
+qc.h(1)
+
+# Compile with DD
+compiled = provider.ibmq_compile(
+    circuits=qc,
+    target="ibmq_fez_qpu",
+    dynamical_decoupling=True
+)
+
+# DD pulses inserted during barriers/idle times
+print(compiled.circuit.draw())
+```
+
+<Tip>
+  Use barriers in your circuit to explicitly mark locations where DD should be applied.
+</Tip>
+
+## Equivalent Circuit Averaging (ECA)
+
+ECA generates multiple logically equivalent circuits with randomized gate implementations to average out coherent errors.
+
+### Basic ECA usage
+
+<CodeGroup>
+```python Qiskit
+import qiskit_superstaq as qss
+import qiskit
+import numpy as np
+
+provider = qss.SuperstaqProvider()
+
+# Original circuit
+qc = qiskit.QuantumCircuit(3)
+qc.h(0)
+qc.cx(0, 1)
+qc.cx(1, 2)
+qc.measure_all()
+
+# Generate 20 equivalent circuits
+compiled = provider.aqt_compile(
+    circuits=qc,
+    target="aqt_keysight_qpu",
+    num_eca_circuits=20,
+    random_seed=42
+)
+
+# Run all circuits and average
+backend = provider.get_backend("aqt_keysight_qpu")
+results = []
+
+for circuit in compiled.circuits:
+    job = backend.run(circuit, shots=1000, method="dry-run")
+    counts = job.result().get_counts()
+    results.append(counts)
+
+# Average the results
+averaged_counts = {}
+for counts in results:
+    for bitstring, count in counts.items():
+        averaged_counts[bitstring] = averaged_counts.get(bitstring, 0) + count
+
+for key in averaged_counts:
+    averaged_counts[key] /= len(results)
+
+print(f"Averaged results: {averaged_counts}")
+```
+
+```python Cirq
+import cirq_superstaq as css
+import cirq
+
+service = css.Service()
+
+qubits = cirq.LineQubit.range(3)
+circuit = cirq.Circuit(
+    cirq.H(qubits[0]),
+    cirq.CNOT(qubits[0], qubits[1]),
+    cirq.CNOT(qubits[1], qubits[2]),
+    cirq.measure(*qubits)
+)
+
+# Generate equivalent circuits
+compiled = service.aqt_compile(
+    circuits=circuit,
+    target="aqt_keysight_qpu",
+    num_eca_circuits=20,
+    random_seed=42
+)
+
+# Execute and average
+results = []
+for circ in compiled.circuits:
+    job = service.create_job(
+        circ,
+        repetitions=1000,
+        target="aqt_keysight_qpu",
+        method="dry-run"
+    )
+    results.append(job.counts(0))
+
+# Average results
+averaged = {}
+for counts in results:
+    for bitstring, count in counts.items():
+        averaged[bitstring] = averaged.get(bitstring, 0) + count / len(results)
+```
+</CodeGroup>
+
+### When to use ECA
+
+ECA is most effective when:
+
+- Coherent errors dominate over incoherent noise
+- Gate calibrations have systematic biases
+- Running algorithms sensitive to over-rotation errors
+- Sufficient circuit executions are available
+
+<Note>
+  ECA requires executing multiple circuits, which increases computational cost but significantly reduces coherent errors.
+</Note>
+
+## Measurement error mitigation
+
+Measurement errors can be mitigated through post-processing:
+
+```python
+import qiskit_superstaq as qss
+import qiskit
+
+provider = qss.SuperstaqProvider()
+backend = provider.get_backend("ibmq_fez_qpu")
+
+# Circuit to execute
+qc = qiskit.QuantumCircuit(2)
+qc.h(0)
+qc.cx(0, 1)
+qc.measure_all()
+
+# Run with measurement error mitigation
+job = backend.run(
+    qc,
+    shots=2000,
+    method="dry-run",
+    mitigation_method="readout"  # Enable readout error mitigation
+)
+
+result = job.result()
+counts = result.get_counts()
+
+print("Mitigated counts:", counts)
+```
+
+<Warning>
+  Measurement error mitigation may produce fractional or negative counts. Use `service.get_counts()` to see raw results.
+</Warning>
+
+## Approximate synthesis
+
+Reduce gate errors by approximating small rotations:
+
+```python
+import qiskit_superstaq as qss
+import qiskit
+import numpy as np
+
+provider = qss.SuperstaqProvider()
+
+# Circuit with small angle rotations
+qc = qiskit.QuantumCircuit(3)
+qc.h(0)
+qc.rz(0.001, 0)  # Very small rotation
+qc.cx(0, 1)
+qc.rx(0.0005, 1)  # Very small rotation
+qc.cx(1, 2)
+
+# Compile with error tolerance
+compiled = provider.aqt_compile(
+    circuits=qc,
+    target="aqt_keysight_qpu",
+    atol=1e-3  # Gates with error < 1e-3 may be approximated/removed
+)
+
+print(f"Original gate count: {qc.count_ops()}")
+print(f"Optimized gate count: {compiled.circuit.count_ops()}")
+```
+
+**Benefits:**
+- Fewer gates → fewer gate errors
+- Shorter circuits → less decoherence
+- Reduced compilation complexity
+
+<Tip>
+  Set `atol` based on your algorithm's error budget. Smaller values preserve accuracy but provide less optimization.
+</Tip>
+
+## Device characterization
+
+### ACES protocol
+
+Automated Characterization of Entangling gates using Simplicity (ACES) characterizes gate performance:
+
+```python
+import cirq_superstaq as css
+
+service = css.Service()
+
+# Submit ACES characterization
+job_id = service.submit_aces(
+    target="ibmq_fez_qpu",
+    qubits=[0, 1, 2, 3, 4],
+    shots=1000,
+    num_circuits=50,
+    mirror_depth=5,
+    extra_depth=3,
+    method="dry-run"
+)
+
+# Process results
+results = service.process_aces(job_id)
+
+# Results contain gate eigenvalues for each qubit
+print("Single-qubit gate eigenvalues:")
+for i, eigenvalue in enumerate(results[:90]):  # 18 per qubit for 5 qubits
+    print(f"Eigenvalue {i}: {eigenvalue}")
+
+print("\nTwo-qubit gate eigenvalues:")
+for i, eigenvalue in enumerate(results[90:]):  # 15 per pair
+    print(f"Eigenvalue {i}: {eigenvalue}")
+```
+
+**ACES characterizes:**
+- Single-qubit Clifford gates (6 gates × 3 eigenvalues per qubit)
+- Two-qubit CZ gates (15 eigenvalues per qubit pair)
+
+### Cycle Benchmarking
+
+Measure process fidelity for specific gate sequences:
+
+```python
+import cirq_superstaq as css
+import cirq
+
+service = css.Service()
+
+# Define process circuit to benchmark
+qubits = cirq.LineQubit.range(2)
+process_circuit = cirq.Circuit(
+    cirq.H(qubits[0]),
+    cirq.CNOT(qubits[0], qubits[1])
+)
+
+# Submit cycle benchmarking
+job_id = service.submit_cb(
+    repetitions=1000,
+    process_circuit=process_circuit,
+    target="ibmq_fez_qpu",
+    n_channels=10,
+    n_sequences=30,
+    depths=[1, 2, 4, 8, 16, 32],
+    method="dry-run"
+)
+
+# Process results
+cb_data = service.process_cb(job_id)
+
+print(f"Process infidelity: {cb_data['process_infidelity']}")
+print(f"SPAM error: {cb_data['spam_error']}")
+print(f"Decay parameters: {cb_data['decay_params']}")
+```
+
+## Direct Fidelity Estimation
+
+Measure state preparation fidelity using random measurements:
+
+<CodeGroup>
+```python Qiskit
+import qiskit_superstaq as qss
+import qiskit
+
+provider = qss.SuperstaqProvider()
+
+# Prepare two states to compare
+qc1 = qiskit.QuantumCircuit(2)
+qc1.h(0)
+qc1.cx(0, 1)
+
+qc2 = qiskit.QuantumCircuit(2)
+qc2.h(0)
+qc2.cx(0, 1)
+qc2.rz(0.1, 0)  # Slightly different state
+
+# Submit DFE protocol
+ids = provider.submit_dfe(
+    rho_1=(qc1, "ss_unconstrained_simulator"),
+    rho_2=(qc2, "ss_unconstrained_simulator"),
+    num_random_bases=100,
+    shots=2000
+)
+
+# Get fidelity estimate
+fidelity = provider.process_dfe(ids)
+print(f"State fidelity: {fidelity:.6f}")
+```
+
+```python Cirq
+import cirq_superstaq as css
+import cirq
+
+service = css.Service()
+
+qubits = cirq.LineQubit.range(2)
+
+# Two states to compare
+circuit1 = cirq.Circuit(
+    cirq.H(qubits[0]),
+    cirq.CNOT(qubits[0], qubits[1])
+)
+
+circuit2 = cirq.Circuit(
+    cirq.H(qubits[0]),
+    cirq.CNOT(qubits[0], qubits[1]),
+    cirq.rz(0.1)(qubits[0])
+)
+
+# Submit DFE
+ids = service.submit_dfe(
+    rho_1=(circuit1, "ss_unconstrained_simulator"),
+    rho_2=(circuit2, "ss_unconstrained_simulator"),
+    num_random_bases=100,
+    shots=2000
+)
+
+# Process results
+fidelity = service.process_dfe(ids)
+print(f"Fidelity: {fidelity:.6f}")
+```
+</CodeGroup>
+
+<Note>
+  DFE circuits should not contain final measurements but can include mid-circuit measurements if supported.
+</Note>
+
+## Combined mitigation strategies
+
+Combine multiple techniques for maximum error reduction:
+
+```python
+import qiskit_superstaq as qss
+import qiskit
+
+provider = qss.SuperstaqProvider()
+
+# Create algorithm circuit
+qc = qiskit.QuantumCircuit(4)
+qc.h(range(4))
+for i in range(3):
+    qc.cx(i, i+1)
+for i in range(4):
+    qc.rz(0.01, i)  # Small rotations
+qc.measure_all()
+
+# Apply multiple mitigation strategies
+compiled = provider.ibmq_compile(
+    circuits=qc,
+    target="ibmq_fez_qpu",
+    dynamical_decoupling=True,  # DD for decoherence
+    dd_strategy="adaptive",
+    atol=1e-3  # Approximate synthesis
+)
+
+# Run with measurement error mitigation
+backend = provider.get_backend("ibmq_fez_qpu")
+job = backend.run(
+    compiled.circuit,
+    shots=3000,
+    method="dry-run",
+    mitigation_method="readout"
+)
+
+result = job.result()
+print(result.get_counts())
+```
+
+## Best practices
+
+<Tip>
+  Always use adaptive DD for IBM Quantum devices unless you have specific reasons to choose another strategy.
+</Tip>
+
+<Tip>
+  Use ECA for algorithms where coherent errors are a primary concern (e.g., variational algorithms).
+</Tip>
+
+<Tip>
+  Characterize your target device with ACES or Cycle Benchmarking to understand error sources.
+</Tip>
+
+<Tip>
+  Combine multiple mitigation techniques for best results, but be aware of increased execution cost.
+</Tip>
+
+<Warning>
+  Measurement error mitigation can produce non-physical (negative or fractional) counts. Handle these appropriately in post-processing.
+</Warning>
+
+## Mitigation strategy selection guide
+
+| Error type | Recommended strategy | Platform support |
+|------------|---------------------|------------------|
+| Decoherence | Dynamical decoupling | IBM Quantum |
+| Coherent errors | ECA | AQT |
+| Measurement errors | Readout mitigation | All platforms |
+| Small gate errors | Approximate synthesis | All platforms |
+| Unknown errors | ACES + Cycle Benchmarking | All platforms |
+
+## Next steps
+
+- Review [circuit optimization](/guides/optimization) techniques
+- Explore [custom gates](/guides/custom-gates) for specific platforms
+- Learn about platform integration with [Qiskit](/guides/qiskit) and [Cirq](/guides/cirq)

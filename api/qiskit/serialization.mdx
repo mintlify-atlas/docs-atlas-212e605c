@@ -1,0 +1,155 @@
+---
+title: Circuit serialization
+---
+
+Utilities for serializing and deserializing Qiskit quantum circuits to and from string format using QPY.
+
+## Functions
+
+### serialize_circuits
+
+```python
+serialize_circuits(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]
+) -> str
+```
+
+Serializes qiskit.QuantumCircuit(s) into a single string.
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+A `qiskit.QuantumCircuit` or list of `qiskit.QuantumCircuit` to be serialized.
+</ParamField>
+
+**Returns:** A string representing the serialized circuit(s).
+
+### Example
+
+```python
+import qiskit
+import qiskit_superstaq as qss
+
+qc = qiskit.QuantumCircuit(2)
+qc.h(0)
+qc.cx(0, 1)
+
+serialized = qss.serialization.serialize_circuits(qc)
+```
+
+### deserialize_circuits
+
+```python
+deserialize_circuits(serialized_circuits: str) -> list[qiskit.QuantumCircuit]
+```
+
+Deserializes serialized qiskit.QuantumCircuit(s).
+
+<ParamField path="serialized_circuits" type="str">
+String generated via `qss.serialization.serialize_circuits()`.
+</ParamField>
+
+**Returns:** A list containing the deserialized circuits.
+
+**Raises:** `ValueError` if `serialized_circuits` can't be deserialized.
+
+### Example
+
+```python
+import qiskit_superstaq as qss
+
+# Assuming serialized is a string from serialize_circuits
+circuits = qss.serialization.deserialize_circuits(serialized)
+```
+
+## Utilities
+
+### to_json
+
+```python
+to_json(val: object) -> str
+```
+
+Extends `json.dumps` to support numpy arrays.
+
+<ParamField path="val" type="object">
+The value to be serialized.
+</ParamField>
+
+**Returns:** The JSON-serialized value (a string).
+
+### json_encoder
+
+```python
+json_encoder(val: object) -> dict[str, object]
+```
+
+Converts (real or complex) arrays to a JSON-serializable format.
+
+<ParamField path="val" type="object">
+The value to be serialized.
+</ParamField>
+
+**Returns:** A JSON dictionary containing the provided name and array values.
+
+**Raises:** `TypeError` if `val` is not a `np.ndarray`.
+
+### json_resolver
+
+```python
+json_resolver(val: T) -> T | npt.NDArray[np.complex128]
+```
+
+Hook to deserialize objects that were serialized via `json_encoder()`.
+
+<ParamField path="val" type="T">
+The deserialized object.
+</ParamField>
+
+**Returns:** The resolved object.
+
+## Constants
+
+### QPY_SERIALIZATION_VERSION
+
+```python
+QPY_SERIALIZATION_VERSION = 13
+```
+
+The QPY version used for circuit serialization. Deserialization can't be done with a QPY version older than that used for serialization, so using a slightly lower version prevents users from having to update Qiskit immediately.
+
+## Implementation details
+
+The serialization module uses Qiskit's QPY (Qiskit Pulse sYstem) format to serialize quantum circuits into a portable binary format that can be stored as strings. The module includes:
+
+- Custom gate type resolution for Superstaq-specific gates (AceCR, ZZSwapGate, DDGate, etc.)
+- Workarounds for known QPY serialization issues in Qiskit
+- Support for controlled gates with non-default control states
+- Support for complex numpy arrays in circuit metadata
+
+### Custom gates support
+
+The following custom gates are automatically resolved during deserialization:
+
+- `acecr` - Active Cancellation Echoed Cross Resonance
+- `dd` - Dipole-Dipole gate
+- `parallel` - ParallelGates
+- `stripped_cz` - Stripped CZ gate
+- `zzswap` - ZZ-SWAP gate
+- `ix`, `ixdg` - iX gates and their conjugate transposes
+- `iccx`, `iccxdg` - Controlled iX gates
+- `ms` - Mølmer-Sørensen gate
+
+### Example with custom gates
+
+```python
+import qiskit
+import qiskit_superstaq as qss
+
+qc = qiskit.QuantumCircuit(2)
+qc.append(qss.ZZSwapGate(np.pi/4), [0, 1])
+
+# Serialize
+serialized = qss.serialization.serialize_circuits(qc)
+
+# Deserialize - custom gate is correctly reconstructed
+restored_circuits = qss.serialization.deserialize_circuits(serialized)
+```

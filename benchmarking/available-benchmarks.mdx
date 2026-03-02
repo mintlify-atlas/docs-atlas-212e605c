@@ -1,0 +1,335 @@
+---
+title: Available benchmarks
+---
+
+Supermarq provides a comprehensive suite of quantum benchmarks covering different application domains and quantum phenomena.
+
+## Benchmark categories
+
+The Supermarq suite includes benchmarks for:
+
+- **State preparation**: Testing entanglement and superposition
+- **Quantum simulation**: Simulating physical systems
+- **Variational algorithms**: Testing hybrid quantum-classical optimization
+- **Error correction**: Evaluating syndrome measurement and stabilizer codes
+- **Nonlocality tests**: Probing quantum correlations
+
+## GHZ state preparation
+
+The GHZ benchmark tests a quantum computer's ability to prepare highly entangled states.
+
+```python
+import supermarq
+
+ghz = supermarq.benchmarks.GHZ(num_qubits=3, method="ladder")
+```
+
+### Parameters
+
+- `num_qubits` (int): Number of qubits in the GHZ circuit
+- `method` (str): Circuit construction method - `"ladder"`, `"star"`, or `"logdepth"`
+  - `"ladder"`: Linear-depth CNOT ladder for nearest-neighbor architectures
+  - `"star"`: Linear-depth with all CNOTs sharing the same control qubit
+  - `"logdepth"`: Logarithmic-depth CNOT fanout circuit
+
+### How it works
+
+The GHZ benchmark creates a maximally entangled state where all qubits are in equal superposition of |000...0⟩ and |111...1⟩:
+
+```python
+# Example circuit generation
+qubits = cirq.LineQubit.range(self.num_qubits)
+circuit = cirq.Circuit()
+circuit += cirq.H(qubits[0])
+
+if self.method == "ladder":
+    for i in range(1, self.num_qubits):
+        circuit += cirq.CNOT(qubits[i - 1], qubits[i])
+```
+
+### Scoring
+
+Performance is measured using Hellinger fidelity between experimental and ideal distributions. The ideal distribution has 50% probability of measuring all zeros and 50% probability of measuring all ones.
+
+```python
+ideal_dist = {b * self.num_qubits: 0.5 for b in ["0", "1"]}
+total_shots = sum(counts.values())
+device_dist = {bitstr: count / total_shots for bitstr, count in counts.items()}
+return hellinger_fidelity(ideal_dist, device_dist)
+```
+
+## Mermin-Bell
+
+Tests a quantum computer's ability to exploit superposition and entanglement to violate classical bounds.
+
+```python
+import supermarq
+
+mermin_bell = supermarq.benchmarks.MerminBell(num_qubits=3)
+```
+
+### Parameters
+
+- `num_qubits` (int): Number of qubits
+
+### How it works
+
+The Mermin-Bell benchmark prepares a GHZ state and measures the Mermin operator, which tests violations of classical locality:
+
+```python
+# Create a GHZ state
+circuit.append(cirq.rx(-np.pi / 2).on(self.qubits[0]))
+for i in range(self.num_qubits - 1):
+    circuit.append(cirq.CNOT(self.qubits[i], self.qubits[i + 1]))
+
+# Simultaneously measure all terms in the Mermin operator
+measurement_circuit = self._get_measurement_circuit()
+circuit.append(measurement_circuit.get_circuit())
+```
+
+### Scoring
+
+The score is based on the expectation value of the Mermin operator, normalized to [0, 1]:
+
+```python
+return (expect_val + 2 ** (self.num_qubits - 1)) / 2**self.num_qubits
+```
+
+## Hamiltonian simulation
+
+Benchmarks the ability to simulate 1D Transverse Field Ising Models (TFIM).
+
+```python
+import supermarq
+
+ham_sim = supermarq.benchmarks.HamiltonianSimulation(
+    num_qubits=6,
+    time_step=1,
+    total_time=10
+)
+```
+
+### Parameters
+
+- `num_qubits` (int): Size of the TFIM chain
+- `time_step` (int): Timestep size in attoseconds (default: 1)
+- `total_time` (int): Total simulation time in attoseconds (default: 1)
+
+### How it works
+
+Simulates evolution under the Hamiltonian:
+
+```
+H(t) = - Jz * sum_{i=1}^{n-1}(σ_z^i * σ_z^{i+1}) - e_ph * cos(ω_ph * t) * sum_{i=1}^{n}(σ_x^i)
+```
+
+The circuit builds up the time evolution through Trotterization:
+
+```python
+for step in range(int(self.total_time / self.time_step)):
+    t = (step + 0.5) * self.time_step
+    
+    # Single qubit terms
+    psi = -2.0 * e_ph * np.cos(w_ph * t) * self.time_step / hbar
+    for qubit in qubits:
+        circuit.append(cirq.H(qubit))
+        circuit.append(cirq.rz(psi)(qubit))
+        circuit.append(cirq.H(qubit))
+    
+    # Coupling terms
+    psi2 = -2.0 * jz * self.time_step / hbar
+    for i in range(len(qubits) - 1):
+        circuit.append(cirq.CNOT(qubits[i], qubits[i + 1]))
+        circuit.append(cirq.rz(psi2)(qubits[i + 1]))
+        circuit.append(cirq.CNOT(qubits[i], qubits[i + 1]))
+```
+
+### Scoring
+
+Performance is based on how closely the experimental average magnetization matches the noiseless value:
+
+```python
+mag_ideal = self._average_magnetization(ideal_counts, 1)
+mag_experimental = self._average_magnetization(counts, total_shots)
+return 1 - abs(mag_ideal - mag_experimental) / 2
+```
+
+## VQE proxy
+
+Proxy benchmark for Variational Quantum Eigensolver that targets a single iteration of variational optimization.
+
+```python
+import supermarq
+
+vqe = supermarq.benchmarks.VQEProxy(num_qubits=4, num_layers=1)
+```
+
+### Parameters
+
+- `num_qubits` (int): Number of qubits
+- `num_layers` (int): Number of layers in the ansatz (default: 1)
+
+### How it works
+
+The benchmark classically optimizes parameters for a TFIM Hamiltonian, then tests hardware execution at the optimized parameters:
+
+```python
+# Generate TFIM Hamiltonian
+for i in range(self.num_qubits):
+    hamiltonian.append(("X", i, 1))
+for i in range(self.num_qubits - 1):
+    hamiltonian.append(("ZZ", (i, i + 1), 1))
+hamiltonian.append(("ZZ", (self.num_qubits - 1, 0), 1))
+```
+
+The ansatz consists of parameterized rotation and entanglement layers:
+
+```python
+for _ in range(self.num_layers):
+    # Ry rotation block
+    for i in range(self.num_qubits):
+        z_circuit.append(cirq.Ry(rads=2 * params[param_counter])(qubits[i]))
+        param_counter += 1
+    # Rz rotation block
+    for i in range(self.num_qubits):
+        z_circuit.append(cirq.Rz(rads=2 * params[param_counter])(qubits[i]))
+        param_counter += 1
+    # Entanglement block
+    for i in range(self.num_qubits - 1):
+        z_circuit.append(cirq.CX(qubits[i], qubits[i + 1]))
+```
+
+<Note>
+The VQE proxy returns **two circuits** (Z-basis and X-basis measurements) that must both be executed. Pass the results as a list to the `score()` method.
+</Note>
+
+### Scoring
+
+Compares experimental energy expectation to ideal noiseless simulation:
+
+```python
+return float(
+    1.0 - abs(ideal_expectation - experimental_expectation) / abs(2 * ideal_expectation)
+)
+```
+
+## Bit code
+
+Syndrome measurement benchmark for bit-flip error correction.
+
+```python
+import supermarq
+
+bit_code = supermarq.benchmarks.BitCode(
+    num_data_qubits=4,
+    num_rounds=3,
+    bit_state=[0, 1, 0, 1]
+)
+```
+
+### Parameters
+
+- `num_data_qubits` (int): Number of data qubits
+- `num_rounds` (int): Number of measurement rounds
+- `bit_state` (list[int]): Initial state for each data qubit (0 or 1)
+
+### How it works
+
+Creates a circuit for syndrome measurement using parity checks:
+
+```python
+# Initialize data qubits
+for i in range(self.num_data_qubits):
+    if self.bit_state[i] == 1:
+        circuit.append(cirq.X(qubits[2 * i]))
+
+# Measurement rounds with ancilla qubits
+for qq in range(1, len(qubits), 2):
+    yield cirq.CX(qubits[qq - 1], qubits[qq])
+for qq in range(1, len(qubits), 2):
+    yield cirq.CX(qubits[qq + 1], qubits[qq])
+yield cirq.measure(*ancilla_qubits, key=f"mcm{round_idx}")
+yield from cirq.reset_each(*ancilla_qubits)
+```
+
+### Scoring
+
+Uses Hellinger fidelity between experimental and ideal distributions based on the initial `bit_state`.
+
+## Phase code
+
+Syndrome measurement benchmark for phase-flip error correction.
+
+```python
+import supermarq
+
+phase_code = supermarq.benchmarks.PhaseCode(
+    num_data_qubits=4,
+    num_rounds=3,
+    phase_state=[0, 0, 1, 1]  # 0 -> |+>, 1 -> |->
+)
+```
+
+### Parameters
+
+- `num_data_qubits` (int): Number of data qubits
+- `num_rounds` (int): Number of measurement rounds
+- `phase_state` (list[int]): Initial phase state (0 for |+⟩, 1 for |−⟩)
+
+### How it works
+
+Similar to bit code but operates in the X basis:
+
+```python
+# Initialize data qubits in X basis
+for i in range(self.num_data_qubits):
+    if self.phase_state[i] == 1:
+        circuit.append(cirq.X(qubits[2 * i]))
+    circuit.append(cirq.H(qubits[2 * i]))
+
+# Measurement rounds with Hadamards and CZ gates
+yield from cirq.H.on_each(*qubits)
+for qq in range(1, len(qubits), 2):
+    yield cirq.CZ(qubits[qq - 1], qubits[qq])
+for qq in range(1, len(qubits), 2):
+    yield cirq.CZ(qubits[qq + 1], qubits[qq])
+yield from cirq.H.on_each(*qubits)
+```
+
+### Scoring
+
+Uses Hellinger fidelity between experimental and ideal distributions.
+
+## QAOA proxy benchmarks
+
+Supermarq also includes QAOA-based benchmarks:
+
+- `QAOAVanillaProxy`: Standard QAOA for MaxCut problems
+- `QAOAFermionicSwapProxy`: QAOA with fermionic swap networks
+
+```python
+import supermarq
+
+# These benchmarks follow the same pattern
+qaoa_vanilla = supermarq.benchmarks.QAOAVanillaProxy(num_qubits=4)
+qaoa_fermionic = supermarq.benchmarks.QAOAFermionicSwapProxy(num_qubits=4)
+```
+
+## Benchmark summary table
+
+| Benchmark | Category | Key Parameters | Output Type |
+|-----------|----------|----------------|-------------|
+| GHZ | State Preparation | `num_qubits`, `method` | Single circuit |
+| MerminBell | Nonlocality | `num_qubits` | Single circuit |
+| HamiltonianSimulation | Simulation | `num_qubits`, `time_step`, `total_time` | Single circuit |
+| VQEProxy | Variational | `num_qubits`, `num_layers` | Two circuits |
+| BitCode | Error Correction | `num_data_qubits`, `num_rounds`, `bit_state` | Single circuit |
+| PhaseCode | Error Correction | `num_data_qubits`, `num_rounds`, `phase_state` | Single circuit |
+| QAOAVanillaProxy | Variational | `num_qubits` | Circuit(s) |
+| QAOAFermionicSwapProxy | Variational | `num_qubits` | Circuit(s) |
+
+## Next steps
+
+<Card title="Running benchmarks" href="/benchmarking/running-benchmarks">
+  Learn how to execute these benchmarks on quantum hardware
+</Card>

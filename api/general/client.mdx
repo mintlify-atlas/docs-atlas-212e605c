@@ -1,0 +1,465 @@
+---
+title: SuperstaqClient
+description: Low-level client for making requests to Superstaq's API
+---
+
+The `SuperstaqClient` classes handle low-level HTTP communication with the Superstaq API. Users should typically use the `Service` class instead of these classes directly.
+
+<Note>
+  Most users should use the `Service` class for interacting with Superstaq rather than the client classes directly.
+</Note>
+
+## Base client
+
+### _BaseSuperstaqClient
+
+Handles calls to Superstaq's API with retry logic and authentication.
+
+#### Constructor
+
+<ParamField path="client_name" type="str" required>
+  The name of the client.
+</ParamField>
+
+<ParamField path="api_key" type="str | None" default="None">
+  The key used for authenticating against the Superstaq API.
+</ParamField>
+
+<ParamField path="remote_host" type="str | None" default="None">
+  The URL of the server exposing the Superstaq API. This will strip anything besides the base scheme and netloc.
+</ParamField>
+
+<ParamField path="api_version" type="str" default="gss.API_VERSION">
+  Which version of the API to use. Defaults to the most recent version.
+</ParamField>
+
+<ParamField path="circuit_type" type="gss.models.CircuitType" default="gss.models.CircuitType.CIRQ">
+  The type of circuit, Cirq, Qiskit, or QASM.
+</ParamField>
+
+<ParamField path="max_retry_seconds" type="float" default="60">
+  The time to continue retriable responses. Defaults to 60 seconds.
+</ParamField>
+
+<ParamField path="verbose" type="bool" default="False">
+  Whether to print to stderr and stdio any retriable errors that are encountered.
+</ParamField>
+
+### HTTP methods
+
+#### get_request
+
+Performs a GET request on a given endpoint.
+
+<ParamField path="endpoint" type="str" required>
+  The endpoint to perform the GET request on.
+</ParamField>
+
+<ParamField path="query" type="Mapping[str, object] | None" default="None">
+  An optional query dictionary to include in the get request. This query will be appended to the url.
+</ParamField>
+
+<ParamField path="**credentials" type="str">
+  Any credentials that need to be added to the request headers.
+</ParamField>
+
+<ResponseField name="return" type="Any">
+  The response of the GET request.
+</ResponseField>
+
+```python
+response = client.get_request("/balance")
+```
+
+#### post_request
+
+Performs a POST request on a given endpoint with a given payload.
+
+<ParamField path="endpoint" type="str" required>
+  The endpoint to perform the POST request on.
+</ParamField>
+
+<ParamField path="json_dict" type="Mapping[str, object]" required>
+  The payload to POST.
+</ParamField>
+
+<ParamField path="**credentials" type="str">
+  Any credentials that need to be added to the request headers.
+</ParamField>
+
+<ResponseField name="return" type="Any">
+  The response of the POST request.
+</ResponseField>
+
+```python
+response = client.post_request("/jobs", {"target": "ss_unconstrained_simulator"})
+```
+
+#### put_request
+
+Performs a PUT request on a given endpoint with a given payload.
+
+<ParamField path="endpoint" type="str" required>
+  The endpoint to perform the PUT request on.
+</ParamField>
+
+<ParamField path="json_dict" type="Mapping[str, object]" required>
+  The payload to PUT.
+</ParamField>
+
+<ParamField path="**credentials" type="str">
+  Any credentials that need to be added to the request headers.
+</ParamField>
+
+<ResponseField name="return" type="Any">
+  The response of the PUT request.
+</ResponseField>
+
+```python
+response = client.put_request("/jobs/123", {"status": "cancelled"})
+```
+
+### Utility methods
+
+#### get_superstaq_version
+
+Gets Superstaq version from response header.
+
+<ResponseField name="return" type="dict[str, str | None]">
+  A dict containing the current Superstaq version.
+</ResponseField>
+
+```python
+version_info = client.get_superstaq_version()
+print(version_info["superstaq_version"])
+```
+
+## API version-specific clients
+
+### _SuperstaqClient (v0.2.0)
+
+Client implementation for API version v0.2.0.
+
+#### create_job
+
+Create a job.
+
+<ParamField path="serialized_circuits" type="dict[str, str]" required>
+  The serialized representation of the circuit to run.
+</ParamField>
+
+<ParamField path="repetitions" type="int" default="1">
+  The number of times to repeat the circuit. For simulation the repeated sampling is not done on the server, but is passed as metadata to be recovered from the returned job.
+</ParamField>
+
+<ParamField path="target" type="str" default="ss_unconstrained_simulator">
+  Target to run on.
+</ParamField>
+
+<ParamField path="method" type="str | None" default="None">
+  Which type of method to execute the circuits (noisy simulator, non-noisy simulator, hardware, etc.).
+</ParamField>
+
+<ParamField path="tag" type="Sequence[str] | str" default="()">
+  An identifying tag (or list of tags) which can be used to find this job.
+</ParamField>
+
+<ParamField path="metadata" type="Mapping[str, object] | None" default="None">
+  Optional other data to store alongside the job.
+</ParamField>
+
+<ParamField path="**kwargs" type="Any">
+  Other optimization and execution parameters.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, Any]">
+  The json body of the response as a dict. This does not contain populated information about the job, but does contain the job id.
+</ResponseField>
+
+**Raises:**
+- `SuperstaqServerException`: if the request fails
+
+```python
+job_response = client.create_job(
+    serialized_circuits={"cirq_circuits": serialized},
+    repetitions=100,
+    target="ss_unconstrained_simulator"
+)
+```
+
+#### fetch_jobs
+
+Get the job from the Superstaq API.
+
+<ParamField path="job_ids" type="Sequence[str] | Sequence[uuid.UUID]" required>
+  The UUIDs of the jobs (returned when the jobs were created).
+</ParamField>
+
+<ParamField path="**kwargs" type="object">
+  Extra options needed to fetch jobs.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, dict[str, Any]]">
+  The json body of the response as a dict.
+</ResponseField>
+
+**Raises:**
+- `SuperstaqServerException`: For other API call failures
+
+```python
+jobs_data = client.fetch_jobs(["job_id_1", "job_id_2"])
+```
+
+#### cancel_jobs
+
+Cancel jobs associated with given job ids.
+
+<ParamField path="job_ids" type="Sequence[str] | Sequence[uuid.UUID]" required>
+  The UUIDs of the jobs (returned when the jobs were created).
+</ParamField>
+
+<ParamField path="**kwargs" type="object">
+  Extra options needed to fetch jobs.
+</ParamField>
+
+<ResponseField name="return" type="list[str]">
+  A list of the job ids of the jobs that successfully cancelled.
+</ResponseField>
+
+**Raises:**
+- `SuperstaqServerException`: For other API call failures
+
+```python
+cancelled = client.cancel_jobs(["job_id_1", "job_id_2"])
+```
+
+#### get_balance
+
+Get the querying user's account balance in USD.
+
+<ResponseField name="return" type="dict[str, float]">
+  The json body of the response as a dict.
+</ResponseField>
+
+```python
+balance_data = client.get_balance()
+balance = balance_data["balance"]
+```
+
+#### get_user_info
+
+Gets a dictionary of the user's info.
+
+<ParamField path="name" type="str | None" default="None">
+  A name to search by.
+</ParamField>
+
+<ParamField path="email" type="str | None" default="None">
+  An email address to search by.
+</ParamField>
+
+<ParamField path="user_id" type="int | uuid.UUID | None" default="None">
+  A user ID to search by.
+</ParamField>
+
+<ResponseField name="return" type="list[dict[str, str | float]]">
+  A list of dictionaries corresponding to the user information for each user that matches the query. If no name or email parameters are used this dictionary will have length 1.
+</ResponseField>
+
+**Raises:**
+- `SuperstaqServerException`: If the server returns an empty response
+
+```python
+user_info = client.get_user_info()
+user_info_by_email = client.get_user_info(email="user@example.com")
+```
+
+#### get_targets
+
+Makes a GET request to retrieve targets from the Superstaq API.
+
+<ParamField path="**kwargs" type="bool | None">
+  Optional flags to restrict/filter returned targets.
+</ParamField>
+
+<ResponseField name="return" type="list[gss.Target]">
+  A list of Superstaq targets matching all provided criteria.
+</ResponseField>
+
+```python
+targets = client.get_targets(simulator=True, available=True)
+```
+
+#### target_info
+
+Makes a POST request to the /target_info endpoint.
+
+<ParamField path="target" type="str" required>
+  A string representing the device to get information about.
+</ParamField>
+
+<ParamField path="**kwargs" type="object">
+  Any other information.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, Any]">
+  The target information.
+</ResponseField>
+
+```python
+info = client.target_info("ibmq_qasm_simulator")
+```
+
+#### compile
+
+Makes a POST request to Superstaq API to compile a list of circuits.
+
+<ParamField path="json_dict" type="dict[str, str]" required>
+  The dictionary containing data to compile.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, str]">
+  A dictionary containing compiled circuit data.
+</ResponseField>
+
+```python
+compiled = client.compile({"cirq_circuits": serialized, "target": "ibmq_qasm_simulator"})
+```
+
+#### resource_estimate
+
+POSTs the given payload to the `/resource_estimate` endpoint.
+
+<ParamField path="json_dict" type="dict[str, str]" required>
+  The payload to POST.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, list[dict[str, int]]]">
+  The response of the given payload.
+</ResponseField>
+
+```python
+estimates = client.resource_estimate({"cirq_circuits": serialized})
+```
+
+#### submit_qubo
+
+Makes a POST request to Superstaq API to submit a QUBO problem to the given target.
+
+<ParamField path="qubo" type="Mapping[tuple[TQuboKey, ...], float]" required>
+  A dictionary representing the QUBO object.
+</ParamField>
+
+<ParamField path="target" type="str" required>
+  The target to submit the QUBO.
+</ParamField>
+
+<ParamField path="repetitions" type="int" required>
+  Number of times that the execution is repeated before stopping.
+</ParamField>
+
+<ParamField path="method" type="str" default="sim_anneal">
+  The parameter specifying method of QUBO solving execution.
+</ParamField>
+
+<ParamField path="max_solutions" type="int | None" default="1000">
+  A parameter that specifies the max number of output solutions.
+</ParamField>
+
+<ParamField path="qaoa_depth" type="int" default="1">
+  The number of QAOA layers to use.
+</ParamField>
+
+<ParamField path="rqaoa_cutoff" type="int" default="0">
+  The stopping point for RQAOA before using switching to a classical solver.
+</ParamField>
+
+<ParamField path="dry_run" type="bool" default="False">
+  If `method="qaoa"`, a boolean flag to (not) run an ideal 'dry-run' QAOA execution on `target`.
+</ParamField>
+
+<ParamField path="random_seed" type="int | None" default="None">
+  Optional random seed choice for RQAOA.
+</ParamField>
+
+<ParamField path="**kwargs" type="object">
+  Any additional keyword arguments supported by the qubo solver methods.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, str]">
+  A dictionary from the POST request.
+</ResponseField>
+
+```python
+result = client.submit_qubo(
+    qubo={('a',): 2, ('a', 'b'): 1},
+    target="ss_unconstrained_simulator",
+    repetitions=10
+)
+```
+
+### _SuperstaqClientV3 (v0.3.0)
+
+Client implementation for API version v0.3.0.
+
+<Warning>
+  Version v0.3.0 of the Superstaq endpoint is currently under development. This version should not be treated as stable. Most users should continue using `api_version='v0.2.0'`.
+</Warning>
+
+The v0.3.0 client provides an updated implementation with the following differences:
+
+- Enhanced job type inference from method parameter
+- Support for `verbatim` flag to skip compilation
+- Improved handling of tags and metadata
+- Updated response models using Pydantic
+
+```python
+import general_superstaq as gss
+
+# Use v0.3.0 client (experimental)
+client = gss.superstaq_client._SuperstaqClientV3(
+    client_name="general-superstaq",
+    api_version="v0.3.0"
+)
+```
+
+## Credentials extraction
+
+The client provides utilities for extracting external provider credentials from kwargs:
+
+### _extract_credentials
+
+Extracts provider credentials from a dictionary of keyword arguments.
+
+<ParamField path="kwargs" type="dict[str, Any]" required>
+  Dictionary of keyword arguments that may contain credentials.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, str]">
+  Dictionary containing extracted credentials (ibmq_token, ibmq_instance, ibmq_channel, cq_token).
+</ResponseField>
+
+```python
+kwargs = {"ibmq_token": "token123", "other_param": "value"}
+credentials = client._extract_credentials(kwargs)
+# credentials = {"ibmq_token": "token123"}
+# kwargs = {"other_param": "value"}
+```
+
+## Constants
+
+### RETRIABLE_STATUS_CODES
+
+Set of HTTP status codes that trigger automatic retry logic.
+
+```python
+RETRIABLE_STATUS_CODES = {503}  # Service Unavailable
+```
+
+### SUPPORTED_VERSIONS
+
+Set of supported API versions.
+
+```python
+SUPPORTED_VERSIONS = {"v0.2.0", "v0.3.0"}
+```

@@ -1,0 +1,483 @@
+---
+title: Service
+description: Core service class for interacting with Superstaq's API
+---
+
+The `Service` class provides the main interface for accessing Superstaq functionality, including job submission, account management, and target information.
+
+## Constructor
+
+<ParamField path="api_key" type="str | None" default="None">
+  The key used for authenticating against the Superstaq API. If not provided, will attempt to read from environment.
+</ParamField>
+
+<ParamField path="remote_host" type="str | None" default="None">
+  The URL of the server exposing the Superstaq API. This will strip anything besides the base scheme and netloc.
+</ParamField>
+
+<ParamField path="api_version" type="str" default="gss.API_VERSION">
+  Which version of the API to use. Defaults to the most recent version when the client was downloaded.
+</ParamField>
+
+<ParamField path="max_retry_seconds" type="int" default="3600">
+  The time to continue retriable responses. Defaults to 3600 seconds (1 hour).
+</ParamField>
+
+<ParamField path="verbose" type="bool" default="False">
+  Whether to print to stderr and stdio any retriable errors that are encountered.
+</ParamField>
+
+```python
+import general_superstaq as gss
+
+service = gss.Service(api_key="your_api_key")
+```
+
+## Account management
+
+### get_balance
+
+Get the querying user's account balance in USD.
+
+<ParamField path="pretty_output" type="bool" default="True">
+  Whether to return a pretty string or a float of the balance.
+</ParamField>
+
+<ResponseField name="return" type="str | float">
+  If `pretty_output` is `True`, returns the balance as a nicely formatted string ($-prefix, commas on LHS every three digits, and two digits after period). Otherwise, returns a float of the balance.
+</ResponseField>
+
+```python
+balance = service.get_balance()
+print(balance)  # "1000.00 credits"
+
+balance_float = service.get_balance(pretty_output=False)
+print(balance_float)  # 1000.0
+```
+
+### get_user_info
+
+Gets a dictionary of the user's information.
+
+<Note>
+  SUPERTECH users can submit optional `name`, `email`, or `user_id` keyword arguments to search for the info of arbitrary users on the server.
+</Note>
+
+<ParamField path="name" type="str | None" default="None">
+  A name to search by.
+</ParamField>
+
+<ParamField path="email" type="str | None" default="None">
+  An email address to search by.
+</ParamField>
+
+<ParamField path="user_id" type="int | None" default="None">
+  A user ID to search by.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, str | float] | list[dict[str, str | float]]">
+  A dictionary of the user information. In the case that either the name or email query kwarg is used, a list of dictionaries is returned, corresponding to the user information for each user that matches the query.
+</ResponseField>
+
+```python
+# Get current user's info
+user_info = service.get_user_info()
+
+# Search for users by email (SUPERTECH only)
+users = service.get_user_info(email="user@example.com")
+```
+
+### add_new_user
+
+Adds a new user to the system.
+
+<ParamField path="name" type="str" required>
+  The name to add.
+</ParamField>
+
+<ParamField path="email" type="str" required>
+  The new user's email.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  String containing status of update (whether or not it failed) and the new user's token.
+</ResponseField>
+
+```python
+result = service.add_new_user(name="John Doe", email="john@example.com")
+```
+
+### update_user_balance
+
+Updates a user's balance.
+
+<ParamField path="email" type="str" required>
+  The user's email.
+</ParamField>
+
+<ParamField path="balance" type="float" required>
+  The new balance. Must not exceed 2000.0.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  String containing status of update (whether or not it failed).
+</ResponseField>
+
+**Raises:**
+- `SuperstaqException`: If requested balance exceeds the limit of 2000.0
+
+```python
+result = service.update_user_balance(email="user@example.com", balance=1500.0)
+```
+
+### update_user_role
+
+Updates a user's role.
+
+<ParamField path="email" type="str" required>
+  The user's email.
+</ParamField>
+
+<ParamField path="role" type="int" required>
+  The new role.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  String containing status of update (whether or not it failed).
+</ResponseField>
+
+```python
+result = service.update_user_role(email="user@example.com", role=2)
+```
+
+## Target information
+
+### get_targets
+
+Gets a list of Superstaq targets along with their status information.
+
+<ParamField path="simulator" type="bool | None" default="None">
+  Optional flag to restrict the list of targets to (non-) simulators.
+</ParamField>
+
+<ParamField path="supports_submit" type="bool | None" default="None">
+  Optional boolean flag to only return targets that (don't) allow circuit submissions.
+</ParamField>
+
+<ParamField path="supports_submit_qubo" type="bool | None" default="None">
+  Optional boolean flag to only return targets that (don't) allow qubo submissions.
+</ParamField>
+
+<ParamField path="supports_compile" type="bool | None" default="None">
+  Optional boolean flag to return targets that (don't) support circuit compilation.
+</ParamField>
+
+<ParamField path="available" type="bool | None" default="None">
+  Optional boolean flag to only return targets that are (not) available to use.
+</ParamField>
+
+<ParamField path="retired" type="bool | None" default="None">
+  Optional boolean flag to only return targets that are or are not retired.
+</ParamField>
+
+<ParamField path="accessible" type="bool | None" default="None">
+  Optional boolean flag to only return targets that are (not) accessible to the user.
+</ParamField>
+
+<ParamField path="**kwargs" type="bool">
+  Any additional, supported flags to restrict/filter returned targets.
+</ParamField>
+
+<ResponseField name="return" type="list[gss.Target]">
+  A list of Superstaq targets matching all provided criteria.
+</ResponseField>
+
+```python
+# Get all available simulators
+targets = service.get_targets(simulator=True, available=True)
+
+# Get all targets that support circuit submission
+targets = service.get_targets(supports_submit=True)
+```
+
+### get_my_targets
+
+Gets a list of Superstaq targets that the user can submit to and are available along with their status information.
+
+<ParamField path="simulator" type="bool | None" default="None">
+  Optional flag to restrict the list of targets to (non-) simulators.
+</ParamField>
+
+<ParamField path="supports_submit" type="bool | None" default="None">
+  Optional boolean flag to only return targets that (don't) allow circuit submissions.
+</ParamField>
+
+<ParamField path="supports_submit_qubo" type="bool | None" default="None">
+  Optional boolean flag to only return targets that (don't) allow qubo submissions.
+</ParamField>
+
+<ParamField path="supports_compile" type="bool | None" default="None">
+  Optional boolean flag to return targets that (don't) support circuit compilation.
+</ParamField>
+
+<ParamField path="available" type="bool | None" default="None">
+  Optional boolean flag to only return targets that are (not) available to use.
+</ParamField>
+
+<ParamField path="retired" type="bool | None" default="None">
+  Optional boolean flag to only return targets that are or are not retired.
+</ParamField>
+
+<ParamField path="**kwargs" type="bool">
+  Any additional, supported flags to restrict/filter returned targets.
+</ParamField>
+
+<ResponseField name="return" type="list[gss.Target]">
+  A list of Superstaq targets that the user can currently submit to.
+</ResponseField>
+
+```python
+# Get all targets accessible to the current user
+my_targets = service.get_my_targets()
+```
+
+## QUBO submission
+
+### submit_qubo
+
+Solves a submitted QUBO problem via annealing. This method returns any number of specified dictionaries that seek the minimum of the energy landscape from the given objective function known as output solutions.
+
+<ParamField path="qubo" type="Mapping[tuple[TQuboKey, ...], float]" required>
+  A dictionary representing the QUBO object. The tuple keys represent the boolean variables of the QUBO and the values represent the coefficients. As an example, for a QUBO with integer coefficients = 2*a + a*b - 5*b*c - 3 (where a, b, and c are boolean variables), the corresponding dictionary format would be `{('a',): 2, ('a', 'b'): 1, ('b', 'c'): -5, (): -3}`.
+</ParamField>
+
+<ParamField path="target" type="str" default="ss_unconstrained_simulator">
+  The target to submit the QUBO.
+</ParamField>
+
+<ParamField path="repetitions" type="int" default="10">
+  Number of times that the execution is repeated before stopping.
+</ParamField>
+
+<ParamField path="method" type="str" default="sim_anneal">
+  The parameter specifying method of QUBO solving execution. Currently, the supported methods include "bruteforce", "sim_anneal", "qaoa", or "rqaoa". Defaults to "sim_anneal" which runs on DWave's simulated annealer.
+</ParamField>
+
+<ParamField path="max_solutions" type="int" default="1000">
+  A parameter that specifies the max number of output solutions.
+</ParamField>
+
+<ParamField path="qaoa_depth" type="int" default="1">
+  The number of QAOA layers to use.
+</ParamField>
+
+<ParamField path="rqaoa_cutoff" type="int" default="0">
+  The stopping point for RQAOA before using switching to a classical solver.
+</ParamField>
+
+<ParamField path="dry_run" type="bool" default="False">
+  If `method="qaoa"`, a boolean flag to (not) run an ideal 'dry-run' QAOA execution on `target`.
+</ParamField>
+
+<ParamField path="random_seed" type="int | None" default="None">
+  Optional random seed choice for RQAOA.
+</ParamField>
+
+<ParamField path="**kwargs" type="object">
+  Any optional keyword arguments supported by the qubo solver methods.
+</ParamField>
+
+<ResponseField name="return" type="list[dict[TQuboKey, int]]">
+  A dictionary containing the output solutions.
+</ResponseField>
+
+```python
+qubo = {('a',): 2, ('a', 'b'): 1, ('b', 'c'): -5, (): -3}
+solutions = service.submit_qubo(qubo, method="sim_anneal")
+```
+
+## AQT configuration
+
+### aqt_upload_configs
+
+Uploads configs for AQT. Arguments can be either file paths (in .yaml format) or qtrl Manager instances.
+
+<ParamField path="pulses" type="object" required>
+  `PulseManager` or file path for pulse configuration.
+</ParamField>
+
+<ParamField path="variables" type="object" required>
+  `VariableManager` or file path for variable configuration.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  A status of the update (whether or not it failed).
+</ResponseField>
+
+```python
+result = service.aqt_upload_configs(
+    pulses="path/to/pulses.yaml",
+    variables="path/to/variables.yaml"
+)
+```
+
+### aqt_get_configs
+
+Retrieves the raw AQT config files that had previously been uploaded to Superstaq.
+
+<ResponseField name="return" type="dict[str, str]">
+  A dictionary containing all of the user's configs (as YAML strings), indexed by the config names (e.g. "pulses", "variables").
+</ResponseField>
+
+```python
+configs = service.aqt_get_configs()
+print(configs["pulses"])
+print(configs["variables"])
+```
+
+### aqt_download_configs
+
+Downloads AQT configs that had previously been uploaded to Superstaq. Optionally saves configs to disk as YAML configuration files. Otherwise, the PyYAML package is required to read the downloaded configs.
+
+<ParamField path="pulses_file_path" type="str | None" default="None">
+  Where to write the pulse configuration.
+</ParamField>
+
+<ParamField path="variables_file_path" type="str | None" default="None">
+  Where to write the variable configuration.
+</ParamField>
+
+<ParamField path="overwrite" type="bool" default="False">
+  Whether or not to overwrite existing files.
+</ParamField>
+
+<ResponseField name="return" type="tuple[dict[str, Any], dict[str, Any]] | None">
+  (If file paths are not provided) a tuple of pulses (a dictionary containing pulse configuration data) and variables (a dictionary containing calibration variables).
+</ResponseField>
+
+**Raises:**
+- `ValueError`: If either file path already exists and overwrite is not True
+- `ModuleNotFoundError`: If file paths are unspecified and PyYAML cannot be imported
+
+```python
+# Download to files
+service.aqt_download_configs(
+    pulses_file_path="pulses.yaml",
+    variables_file_path="variables.yaml"
+)
+
+# Download as dictionaries
+pulses, variables = service.aqt_download_configs()
+```
+
+## ACES protocol
+
+### submit_aces
+
+Submits the jobs to characterize `target` through the ACES protocol.
+
+The protocol characterizes gate eigenvalues. For each qubit in the device, six Clifford gates are considered (given by the XZ maps: XZ, ZX, -YZ, -XY, ZY, YX). For each gate, three eigenvalues are returned (X, Y, Z, in that order). The two-qubit gate considered is the CZ in linear connectivity, with 15 eigenvalues.
+
+If n qubits are characterized, the first 18 * n entries of the list returned by `process_aces` will contain the single-qubit eigenvalues for each gate. After all the single-qubit eigenvalues, the next 15 * (n - 1) entries will contain the CZ connections, in ascending order.
+
+The protocol in detail can be found in: https://arxiv.org/abs/2108.05803
+
+<ParamField path="target" type="str" required>
+  The device target to characterize.
+</ParamField>
+
+<ParamField path="qubits" type="Sequence[int]" required>
+  A list with the qubit indices to characterize.
+</ParamField>
+
+<ParamField path="shots" type="int" required>
+  How many shots to use per circuit submitted.
+</ParamField>
+
+<ParamField path="num_circuits" type="int" required>
+  How many random circuits to use in the protocol.
+</ParamField>
+
+<ParamField path="mirror_depth" type="int" required>
+  The half-depth of the mirror portion of the random circuits.
+</ParamField>
+
+<ParamField path="extra_depth" type="int" required>
+  The depth of the fully random portion of the random circuits.
+</ParamField>
+
+<ParamField path="method" type="str | None" default="None">
+  Which type of method to execute the circuits with.
+</ParamField>
+
+<ParamField path="noise" type="str | None" default="None">
+  Noise model to simulate the protocol with. Valid strings are "symmetric_depolarize", "phase_flip", "bit_flip" and "asymmetric_depolarize".
+</ParamField>
+
+<ParamField path="error_prob" type="float | tuple[float, float, float] | None" default="None">
+  The error probabilities if a string was passed to `noise`. For "asymmetric_depolarize", `error_prob` will be a three-tuple with the error rates for the X, Y, Z gates in that order. For the other channels, `error_prob` is one number less than or equal to 1.
+</ParamField>
+
+<ParamField path="tag" type="str | None" default="None">
+  Tag for all jobs submitted for this protocol.
+</ParamField>
+
+<ParamField path="lifespan" type="int | None" default="None">
+  How long to store the jobs submitted for in days (only works with right permissions).
+</ParamField>
+
+<ResponseField name="return" type="str">
+  A string with the job id for the ACES job created.
+</ResponseField>
+
+**Raises:**
+- `ValueError`: If the target or noise model are not valid
+- `SuperstaqServerException`: If the request fails
+
+```python
+job_id = service.submit_aces(
+    target="ibmq_qasm_simulator",
+    qubits=[0, 1, 2],
+    shots=1000,
+    num_circuits=10,
+    mirror_depth=5,
+    extra_depth=2
+)
+```
+
+### process_aces
+
+Process a job submitted through `submit_aces`.
+
+<ParamField path="job_id" type="str" required>
+  The job id returned by `submit_aces`.
+</ParamField>
+
+<ResponseField name="return" type="list[float]">
+  The estimated eigenvalues.
+</ResponseField>
+
+```python
+eigenvalues = service.process_aces(job_id)
+```
+
+## Atom picture submission
+
+### submit_atom_picture
+
+Performs a POST request on the `/atom_picture` endpoint.
+
+<ParamField path="bitmap" type="npt.ArrayLike" required>
+  A 2D array-like object of integers from the set {0, 1, 2}. '0' is empty, '1' is atom, and '2' is whatever is there.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  A string containing the post request id.
+</ResponseField>
+
+```python
+import numpy as np
+
+bitmap = np.array([[0, 1, 0], [1, 2, 1], [0, 1, 0]])
+result = service.submit_atom_picture(bitmap)
+```

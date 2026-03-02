@@ -1,0 +1,490 @@
+---
+title: SuperstaqProvider
+---
+
+The provider class for accessing Superstaq backends, services, and compilation endpoints.
+
+## SuperstaqProvider
+
+Provider for Superstaq backends.
+
+```python
+class SuperstaqProvider(gss.service.Service)
+```
+
+### Constructor
+
+```python
+SuperstaqProvider(
+    api_key: str | None = None,
+    remote_host: str | None = None,
+    api_version: str = gss.API_VERSION,
+    max_retry_seconds: int = 3600,
+    verbose: bool = False,
+    cq_token: str | None = None,
+    ibmq_token: str | None = None,
+    ibmq_instance: str | None = None,
+    ibmq_channel: str | None = None,
+    use_stored_ibmq_credentials: bool = False,
+    ibmq_name: str | None = None,
+    **kwargs: Any
+)
+```
+
+<ParamField path="api_key" type="str | None">
+A string that allows access to the Superstaq API. If no key is provided, then this instance tries to use the environment variable `SUPERSTAQ_API_KEY`. If `SUPERSTAQ_API_KEY` is not set, then this instance checks for the following files:
+- `$XDG_DATA_HOME/super.tech/superstaq_api_key`
+- `$XDG_DATA_HOME/coldquanta/superstaq_api_key`
+- `~/.super.tech/superstaq_api_key`
+- `~/.coldquanta/superstaq_api_key`
+
+If one of those files exists, the first line is interpreted as an API key. Failure to find an API key raises an `EnvironmentError`.
+</ParamField>
+
+<ParamField path="remote_host" type="str | None">
+The location of the API in the form of a URL. If this is None, then this instance will use the environment variable `SUPERSTAQ_REMOTE_HOST`. If that variable is not set, then this uses `https://superstaq.infleqtion.com/{api_version}`.
+</ParamField>
+
+<ParamField path="api_version" type="str">
+The version of the API. Defaults to `gss.API_VERSION`.
+</ParamField>
+
+<ParamField path="max_retry_seconds" type="int">
+The number of seconds to retry calls for. Defaults to 3600 (one hour).
+</ParamField>
+
+<ParamField path="verbose" type="bool">
+Whether to print to stdio and stderr on retriable errors. Defaults to False.
+</ParamField>
+
+<ParamField path="cq_token" type="str | None">
+Token from CQ cloud. This may be required to submit circuits to CQ hardware.
+</ParamField>
+
+<ParamField path="ibmq_token" type="str | None">
+An optional IBM Quantum or IBM Cloud token. This may be required to submit circuits to IBM hardware, or to access non-public IBM devices you may have access to.
+</ParamField>
+
+<ParamField path="ibmq_instance" type="str | None">
+An optional instance to use when running IBM jobs.
+</ParamField>
+
+<ParamField path="ibmq_channel" type="str | None">
+Optional type of IBM account. Must be either "ibm_quantum_platform" or "ibm_cloud".
+</ParamField>
+
+<ParamField path="use_stored_ibmq_credentials" type="bool">
+Boolean flag on whether to retrieve IBM credentials from locally saved accounts or not. Defaults to `False`.
+</ParamField>
+
+<ParamField path="ibmq_name" type="str | None">
+The name of the account to retrieve. The default is `default-ibm-quantum`.
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other optimization and execution parameters.
+</ParamField>
+
+### Example usage
+
+```python
+import qiskit_superstaq as qss
+
+ss_provider = qss.SuperstaqProvider("MY_TOKEN")
+backend = ss_provider.get_backend("ibmq_qpu_jakarta_qpu")
+```
+
+### Methods
+
+#### get_backend
+
+```python
+get_backend(target: str) -> SuperstaqBackend
+```
+
+Returns a Superstaq backend.
+
+<ParamField path="target" type="str">
+A string containing the name of a target backend.
+</ParamField>
+
+**Returns:** A `SuperstaqBackend` instance.
+
+#### backends
+
+```python
+backends(
+    simulator: bool | None = None,
+    supports_submit: bool | None = None,
+    supports_submit_qubo: bool | None = None,
+    supports_compile: bool | None = None,
+    available: bool | None = None,
+    retired: bool | None = None,
+    accessible: bool | None = None,
+    **kwargs: bool
+) -> list[SuperstaqBackend]
+```
+
+Lists the backends available from this provider.
+
+<ParamField path="simulator" type="bool | None">
+Optional flag to restrict the list of targets to (non-) simulators.
+</ParamField>
+
+<ParamField path="supports_submit" type="bool | None">
+Optional boolean flag to only return targets that (don't) allow circuit submissions.
+</ParamField>
+
+<ParamField path="supports_submit_qubo" type="bool | None">
+Optional boolean flag to only return targets that (don't) allow qubo submissions.
+</ParamField>
+
+<ParamField path="supports_compile" type="bool | None">
+Optional boolean flag to return targets that (don't) support circuit compilation.
+</ParamField>
+
+<ParamField path="available" type="bool | None">
+Optional boolean flag to only return targets that are (not) available to use.
+</ParamField>
+
+<ParamField path="retired" type="bool | None">
+Optional boolean flag to only return targets that are or are not retired.
+</ParamField>
+
+<ParamField path="accessible" type="bool | None">
+Optional boolean flag to only return targets that are (not) accessible to the user.
+</ParamField>
+
+<ParamField path="kwargs" type="bool">
+Any additional, supported flags to restrict/filter returned targets.
+</ParamField>
+
+**Returns:** A list of Superstaq backends.
+
+#### get_job
+
+```python
+get_job(job_id: str) -> SuperstaqJob
+```
+
+Gets a job that has been created on the Superstaq API.
+
+<ParamField path="job_id" type="str">
+The UUID of the job. Jobs are assigned these numbers by the server during the creation of the job.
+</ParamField>
+
+**Returns:** A `SuperstaqJob` which can be queried for status or results.
+
+#### resource_estimate
+
+```python
+resource_estimate(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    target: str
+) -> gss.ResourceEstimate | list[gss.ResourceEstimate]
+```
+
+Generates resource estimates for qiskit circuit(s).
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The circuit(s) used during resource estimation.
+</ParamField>
+
+<ParamField path="target" type="str">
+A string containing the name of a target backend.
+</ParamField>
+
+**Returns:** ResourceEstimate(s) containing resource costs (after compilation) for running circuit(s) on a backend.
+
+#### aqt_compile
+
+```python
+aqt_compile(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    target: str = "aqt_keysight_qpu",
+    *,
+    num_eca_circuits: int | None = None,
+    random_seed: int | None = None,
+    atol: float | None = None,
+    gate_defs: Mapping[str, str | npt.NDArray[np.number[Any]] | None] | None = None,
+    gateset: Mapping[str, Sequence[Sequence[int]]] | None = None,
+    pulses: object = None,
+    variables: object = None,
+    **kwargs: Any
+) -> CompilerOutput
+```
+
+Compiles and optimizes the given circuit(s) for the Advanced Quantum Testbed (AQT).
+
+AQT is a superconducting transmon quantum computing testbed at Lawrence Berkeley National Laboratory. More information can be found at https://aqt.lbl.gov.
+
+Specifying a nonzero value for `num_eca_circuits` enables compilation with Equivalent Circuit Averaging (ECA). See https://arxiv.org/abs/2111.04572 for a description of ECA.
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The circuit(s) to compile.
+</ParamField>
+
+<ParamField path="target" type="str">
+A string containing the name of a target AQT backend. Defaults to "aqt_keysight_qpu".
+</ParamField>
+
+<ParamField path="num_eca_circuits" type="int | None">
+Optional number of logically equivalent random circuits to generate from each input circuit for Equivalent Circuit Averaging (ECA).
+</ParamField>
+
+<ParamField path="random_seed" type="int | None">
+Optional seed used for approximate synthesis and ECA.
+</ParamField>
+
+<ParamField path="atol" type="float | None">
+An optional tolerance to use for approximate gate synthesis.
+</ParamField>
+
+<ParamField path="gate_defs" type="Mapping[str, str | npt.NDArray[np.number[Any]] | None] | None">
+An optional dictionary mapping names in `qtrl` configs to operations, where each operation can be either a unitary matrix or None.
+</ParamField>
+
+<ParamField path="gateset" type="Mapping[str, Sequence[Sequence[int]]] | None">
+Which gates to use for compilation. Should be a dictionary with entries in the form `gate_name: [[1, 2], [3, 4]]`, where the keys refer to specific gates, and the values indicate which qubit(s) they act upon.
+</ParamField>
+
+<ParamField path="pulses" type="object">
+Qtrl `PulseManager` or file path for pulse configuration.
+</ParamField>
+
+<ParamField path="variables" type="object">
+Qtrl `VariableManager` or file path for variable configuration.
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other desired compile options.
+</ParamField>
+
+**Returns:** Object whose .circuit(s) attribute contains the optimized circuits(s). Alternatively for ECA, an Object whose .circuits attribute is a list (or list of lists) of logically equivalent circuits. If `qtrl` is installed, the object's .seq attribute is a qtrl Sequence object containing pulse sequences for each compiled circuit.
+
+#### ibmq_compile
+
+```python
+ibmq_compile(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    target: str,
+    *,
+    dynamical_decoupling: bool = True,
+    dd_strategy: str = "adaptive",
+    **kwargs: Any
+) -> CompilerOutput
+```
+
+Returns pulse schedule(s) for the given qiskit circuit(s) and target.
+
+Superstaq currently supports the following dynamical decoupling strategies:
+
+* **"standard"**: Places a single DD sequence in each idle window.
+* **"syncopated"**: Places DD pulses at fixed time intervals, alternating between pulses on neighboring qubits in order to mitigate parasitic ZZ coupling errors.
+* **"adaptive"** (default): Dynamically spaces DD pulses across idle windows with awareness of neighboring qubits to achieve the parasitic ZZ coupling mitigation of the "syncopated" strategy with fewer pulses and less discretization error.
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The circuit(s) to compile.
+</ParamField>
+
+<ParamField path="target" type="str">
+A string containing the name of a target IBMQ backend.
+</ParamField>
+
+<ParamField path="dynamical_decoupling" type="bool">
+Applies dynamical decoupling optimization to circuit(s). Defaults to True.
+</ParamField>
+
+<ParamField path="dd_strategy" type="str">
+Method to use for placing dynamical decoupling operations; should be either "standard", "syncopated", or "adaptive" (default).
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other desired compile options.
+</ParamField>
+
+**Returns:** Object whose .circuit(s) attribute contains the compiled circuits(s), and whose .pulse_gate_circuit(s) attribute contains the corresponding pulse schedule(s) (when available).
+
+#### qscout_compile
+
+```python
+qscout_compile(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    target: str = "qscout_peregrine_qpu",
+    *,
+    mirror_swaps: bool = False,
+    base_entangling_gate: str = "xx",
+    num_qubits: int | None = None,
+    error_rates: SupportsItems[tuple[int, ...], float] | None = None,
+    atol: float = 1e-8,
+    atol_map: SupportsItems[tuple[int, ...], float] | None = None,
+    **kwargs: Any
+) -> CompilerOutput
+```
+
+Compiles and optimizes the given circuit(s) for the QSCOUT trapped-ion testbed at Sandia National Laboratories.
+
+Compiled circuits are returned as both `qiskit.QuantumCircuit` objects and corresponding Jaqal programs (strings).
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The circuit(s) to compile.
+</ParamField>
+
+<ParamField path="target" type="str">
+A string containing the name of a target backend. Defaults to "qscout_peregrine_qpu".
+</ParamField>
+
+<ParamField path="mirror_swaps" type="bool">
+Whether to use mirror swapping to reduce two-qubit gate overhead. Defaults to False.
+</ParamField>
+
+<ParamField path="base_entangling_gate" type="str">
+The base entangling gate to use ("xx", "zz", "sxx", or "szz"). Compilation with the "xx" and "zz" entangling bases will use arbitrary parameterized two-qubit interactions, while the "sxx" and "szz" bases will only use fixed maximally-entangling rotations. Defaults to "xx".
+</ParamField>
+
+<ParamField path="num_qubits" type="int | None">
+An optional number of qubits that should be present in the compiled circuit(s) and Jaqal program(s) (otherwise this will be determined from the input).
+</ParamField>
+
+<ParamField path="error_rates" type="SupportsItems[tuple[int, ...], float] | None">
+Optional dictionary assigning relative error rates to pairs of physical qubits, in the form `{<qubit_indices>: <error_rate>, ...}` where `<qubit_indices>` is a tuple physical qubit indices (ints) and `<error_rate>` is a relative error rate for gates acting on those qubits.
+</ParamField>
+
+<ParamField path="atol" type="float">
+Optional tolerance (trace distance bound) used for approximate compilation. Superstaq will elide gates which can be approximated within the given tolerance by identity operations. Defaults to 1e-8.
+</ParamField>
+
+<ParamField path="atol_map" type="SupportsItems[tuple[int, ...], float] | None">
+Optional dictionary assigning compilation tolerances to physical qubits, in the form `{<qubit_indices>: <atol>, ...}`. If provided, these tolerances will override `atol` for gates on the given qubits.
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other desired qscout_compile options.
+</ParamField>
+
+**Returns:** Object whose .circuit(s) attribute contains optimized `qiskit.QuantumCircuit`(s), and `.jaqal_program` attribute contains the corresponding Jaqal program(s).
+
+#### cq_compile
+
+```python
+cq_compile(
+    circuits: qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit],
+    target: str = "cq_sqale_qpu",
+    *,
+    grid_shape: tuple[int, int] | None = None,
+    control_radius: float = 1.0,
+    stripped_cz_rads: float = 0.0,
+    **kwargs: Any
+) -> CompilerOutput
+```
+
+Compiles the given circuit(s) to CQ device, optimized to its native gate set.
+
+<ParamField path="circuits" type="qiskit.QuantumCircuit | Sequence[qiskit.QuantumCircuit]">
+The circuit(s) to compile.
+</ParamField>
+
+<ParamField path="target" type="str">
+String of target CQ device. Defaults to "cq_sqale_qpu".
+</ParamField>
+
+<ParamField path="grid_shape" type="tuple[int, int] | None">
+Optional fixed dimensions for the rectangular qubit grid (by default the actual qubit layout will be pulled from the hardware provider).
+</ParamField>
+
+<ParamField path="control_radius" type="float">
+The radius with which qubits remain connected (ie 1.0 indicates nearest neighbor connectivity). Defaults to 1.0.
+</ParamField>
+
+<ParamField path="stripped_cz_rads" type="float">
+The angle in radians of the stripped cz gate. Defaults to 0.0.
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other desired cq_compile options.
+</ParamField>
+
+**Returns:** Object whose .circuit(s) attribute is an optimized qiskit circuit(s).
+
+#### supercheq
+
+```python
+supercheq(
+    files: list[list[int]],
+    num_qubits: int,
+    depth: int
+) -> tuple[list[qiskit.QuantumCircuit], npt.NDArray[np.float64]]
+```
+
+Returns Supercheq randomly generated circuits and the corresponding fidelity matrices.
+
+<ParamField path="files" type="list[list[int]]">
+A list of files specified as binary using ints. For example: `[[1, 0, 1], [1, 1, 1]]`.
+</ParamField>
+
+<ParamField path="num_qubits" type="int">
+The number of qubits to run Supercheq on.
+</ParamField>
+
+<ParamField path="depth" type="int">
+The depth of the circuits to run Supercheq on.
+</ParamField>
+
+**Returns:** A tuple containing a list of qiskit.QuantumCircuits and a list of corresponding fidelity matrices.
+
+#### submit_dfe
+
+```python
+submit_dfe(
+    rho_1: tuple[qiskit.QuantumCircuit, str],
+    rho_2: tuple[qiskit.QuantumCircuit, str],
+    num_random_bases: int,
+    shots: int,
+    **kwargs: Any
+) -> list[str]
+```
+
+Executes the circuits necessary for the DFE protocol.
+
+The circuits used to prepare the desired states should not contain final measurements, but can contain mid-circuit measurements (as long as the intended target supports them).
+
+The fidelity between states is calculated following the random measurement protocol outlined in [Elben et al., Phys. Rev. Lett. 124, 010504 (2020)](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.124.010504).
+
+<ParamField path="rho_1" type="tuple[qiskit.QuantumCircuit, str]">
+Tuple containing the information to prepare the first state. It contains a `qiskit.QuantumCircuit` at index 0 and a target name at index 1.
+</ParamField>
+
+<ParamField path="rho_2" type="tuple[qiskit.QuantumCircuit, str]">
+Tuple containing the information to prepare the second state. It contains a `qiskit.QuantumCircuit` at index 0 and a target name at index 1.
+</ParamField>
+
+<ParamField path="num_random_bases" type="int">
+Number of random bases to measure each state in.
+</ParamField>
+
+<ParamField path="shots" type="int">
+Number of shots to use per random basis.
+</ParamField>
+
+<ParamField path="kwargs" type="Any">
+Other execution parameters:
+- `tag`: Tag for all jobs submitted for this protocol.
+- `lifespan`: How long to store the jobs submitted for in days (only works with right permissions).
+- `method`: Which type of method to execute the circuits with.
+</ParamField>
+
+**Returns:** A list with two strings, which are the job ids that need to be passed to `process_dfe` to post-process the measurement results and return the fidelity.
+
+#### process_dfe
+
+```python
+process_dfe(ids: list[str]) -> float
+```
+
+Process the results of a DFE protocol.
+
+<ParamField path="ids" type="list[str]">
+A list (size two) of ids returned by a call to `submit_dfe`.
+</ParamField>
+
+**Returns:** The estimated fidelity between the two states as a float.

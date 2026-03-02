@@ -1,0 +1,592 @@
+---
+title: Service
+description: API reference for the Cirq Superstaq Service class
+---
+
+The `Service` class provides access to Superstaq's API for quantum circuit execution and compilation.
+
+## Service class
+
+A class to access Superstaq's API with support for various quantum hardware targets and simulators.
+
+### Constructor
+
+```python
+Service(
+    api_key: str | None = None,
+    remote_host: str | None = None,
+    default_target: str | None = None,
+    api_version: str = "v0.3.0",
+    max_retry_seconds: int = 3600,
+    verbose: bool = False,
+    cq_token: str | None = None,
+    ibmq_token: str | None = None,
+    ibmq_instance: str | None = None,
+    ibmq_channel: str | None = None,
+    use_stored_ibmq_credentials: bool = False,
+    ibmq_name: str | None = None,
+    **kwargs
+)
+```
+
+<ParamField path="api_key" type="str | None">
+  API key for accessing Superstaq. If not provided, checks environment variable `SUPERSTAQ_API_KEY` or configuration files.
+</ParamField>
+
+<ParamField path="remote_host" type="str | None">
+  URL of the API endpoint. Defaults to environment variable `SUPERSTAQ_REMOTE_HOST` if not specified.
+</ParamField>
+
+<ParamField path="default_target" type="str | None">
+  Default target device for job submissions. If None, target must be specified in each call.
+</ParamField>
+
+<ParamField path="api_version" type="str" default="v0.3.0">
+  Version of the API to use. Must be either "v0.2.0" or "v0.3.0".
+</ParamField>
+
+<ParamField path="max_retry_seconds" type="int" default="3600">
+  Number of seconds to retry API calls. Defaults to one hour.
+</ParamField>
+
+<ParamField path="verbose" type="bool" default="False">
+  Whether to print status messages on retriable errors.
+</ParamField>
+
+<ParamField path="cq_token" type="str | None">
+  Token from CQ cloud, required for CQ hardware submissions.
+</ParamField>
+
+<ParamField path="ibmq_token" type="str | None">
+  IBM Quantum or IBM Cloud token for accessing IBM devices.
+</ParamField>
+
+<ParamField path="ibmq_instance" type="str | None">
+  Instance to use when running IBM jobs.
+</ParamField>
+
+<ParamField path="ibmq_channel" type="str | None">
+  Type of IBM account. Must be "ibm_quantum_platform" or "ibm_cloud".
+</ParamField>
+
+<ParamField path="use_stored_ibmq_credentials" type="bool" default="False">
+  Whether to retrieve IBM credentials from locally saved accounts.
+</ParamField>
+
+<ParamField path="ibmq_name" type="str | None">
+  Name of the IBM account to retrieve. Defaults to "default-ibm-quantum".
+</ParamField>
+
+## Methods
+
+### create_job
+
+Creates a new job to run circuit(s) on Superstaq.
+
+```python
+create_job(
+    circuits: cirq.AbstractCircuit | Sequence[cirq.AbstractCircuit],
+    repetitions: int = 1000,
+    target: str | None = None,
+    method: str | None = None,
+    verbatim: bool = False,
+    tag: Sequence[str] | str = (),
+    metadata: Mapping[str, object] | None = None,
+    **kwargs
+) -> Job | JobV3
+```
+
+<ParamField path="circuits" type="cirq.AbstractCircuit | Sequence[cirq.AbstractCircuit]">
+  Circuit or list of circuits to run.
+</ParamField>
+
+<ParamField path="repetitions" type="int" default="1000">
+  Number of times to repeat the circuit.
+</ParamField>
+
+<ParamField path="target" type="str | None">
+  Device or simulator to run the job on.
+</ParamField>
+
+<ParamField path="method" type="str | None">
+  Optional execution method (e.g., "dry-run").
+</ParamField>
+
+<ParamField path="verbatim" type="bool" default="False">
+  Run circuits without compilation.
+</ParamField>
+
+<ParamField path="tag" type="Sequence[str] | str">
+  Identifying tag(s) to associate with the job.
+</ParamField>
+
+<ParamField path="metadata" type="Mapping[str, object] | None">
+  Additional data to store with the job.
+</ParamField>
+
+<ResponseField name="return" type="Job | JobV3">
+  A Job object that can be queried for status and results.
+</ResponseField>
+
+### get_job
+
+Retrieves a previously created job by ID.
+
+```python
+get_job(job_id: str | uuid.UUID) -> Job | JobV3
+```
+
+<ParamField path="job_id" type="str | uuid.UUID">
+  Unique identifier assigned by the server during job creation.
+</ParamField>
+
+<ResponseField name="return" type="Job | JobV3">
+  A Job object that can be queried for status and results.
+</ResponseField>
+
+### get_counts
+
+Runs circuit(s) and returns measurement counts.
+
+```python
+get_counts(
+    circuits: cirq.Circuit | Sequence[cirq.Circuit],
+    repetitions: int,
+    target: str | None = None,
+    param_resolver: cirq.ParamResolverOrSimilarType = cirq.ParamResolver({}),
+    method: str | None = None,
+    **kwargs
+) -> dict[str, int] | list[dict[str, int]]
+```
+
+<ParamField path="circuits" type="cirq.Circuit | Sequence[cirq.Circuit]">
+  Circuit(s) to run.
+</ParamField>
+
+<ParamField path="repetitions" type="int">
+  Number of times to run the circuit(s).
+</ParamField>
+
+<ParamField path="target" type="str | None">
+  Device to run the job on.
+</ParamField>
+
+<ParamField path="param_resolver" type="cirq.ParamResolverOrSimilarType">
+  Parameter resolver for parameterized circuits.
+</ParamField>
+
+<ParamField path="method" type="str | None">
+  Optional execution method.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, int] | list[dict[str, int]]">
+  Measurement counts as a dictionary mapping bitstrings to frequencies.
+</ResponseField>
+
+### run
+
+Runs circuit(s) and returns Cirq results.
+
+```python
+run(
+    circuits: cirq.Circuit | Sequence[cirq.Circuit],
+    repetitions: int,
+    target: str | None = None,
+    param_resolver: cirq.ParamResolver = cirq.ParamResolver({}),
+    method: str | None = None,
+    **kwargs
+) -> cirq.ResultDict | list[cirq.ResultDict]
+```
+
+<ParamField path="circuits" type="cirq.Circuit | Sequence[cirq.Circuit]">
+  Circuit(s) to run.
+</ParamField>
+
+<ParamField path="repetitions" type="int">
+  Number of times to run the circuit(s).
+</ParamField>
+
+<ParamField path="target" type="str | None">
+  Device to run the job on.
+</ParamField>
+
+<ParamField path="param_resolver" type="cirq.ParamResolver">
+  Parameter resolver for parameterized circuits.
+</ParamField>
+
+<ParamField path="method" type="str | None">
+  Optional execution method.
+</ParamField>
+
+<ResponseField name="return" type="cirq.ResultDict | list[cirq.ResultDict]">
+  Cirq ResultDict object(s) containing measurement results.
+</ResponseField>
+
+<Warning>
+  May return unexpected results with measurement error mitigation. Use `get_counts()` instead.
+</Warning>
+
+### sampler
+
+Returns a Cirq sampler interface.
+
+```python
+sampler(target: str | None = None) -> cirq.Sampler
+```
+
+<ParamField path="target" type="str | None">
+  Target device for sampling.
+</ParamField>
+
+<ResponseField name="return" type="cirq.Sampler">
+  A Cirq Sampler object for the Superstaq API.
+</ResponseField>
+
+### compile
+
+Compiles circuit(s) to the target device's native gateset.
+
+```python
+compile(
+    circuits: cirq.Circuit | Sequence[cirq.Circuit],
+    target: str,
+    **kwargs
+) -> CompilerOutput
+```
+
+<ParamField path="circuits" type="cirq.Circuit | Sequence[cirq.Circuit]">
+  Circuit(s) to compile.
+</ParamField>
+
+<ParamField path="target" type="str">
+  Target device name.
+</ParamField>
+
+<ResponseField name="return" type="CompilerOutput">
+  A CompilerOutput object containing optimized compiled circuit(s).
+</ResponseField>
+
+### aqt_compile
+
+Compiles circuit(s) for the Advanced Quantum Testbed (AQT).
+
+```python
+aqt_compile(
+    circuits: cirq.Circuit | Sequence[cirq.Circuit],
+    target: str = "aqt_keysight_qpu",
+    *,
+    num_eca_circuits: int | None = None,
+    random_seed: int | None = None,
+    atol: float | None = None,
+    gate_defs: Mapping | None = None,
+    gateset: Mapping[str, Sequence[Sequence[int]]] | None = None,
+    pulses: object = None,
+    variables: object = None,
+    **kwargs
+) -> CompilerOutput
+```
+
+<ParamField path="circuits" type="cirq.Circuit | Sequence[cirq.Circuit]">
+  Circuit(s) to compile.
+</ParamField>
+
+<ParamField path="target" type="str" default="aqt_keysight_qpu">
+  AQT device target.
+</ParamField>
+
+<ParamField path="num_eca_circuits" type="int | None">
+  Number of logically equivalent circuits for Equivalent Circuit Averaging (ECA).
+</ParamField>
+
+<ParamField path="random_seed" type="int | None">
+  Seed for approximate synthesis and ECA.
+</ParamField>
+
+<ParamField path="atol" type="float | None">
+  Tolerance for approximate gate synthesis.
+</ParamField>
+
+<ParamField path="gate_defs" type="Mapping | None">
+  Dictionary mapping qtrl config names to operations (unitary matrix, cirq.Gate, cirq.Operation, or None).
+</ParamField>
+
+<ParamField path="gateset" type="Mapping[str, Sequence[Sequence[int]]] | None">
+  Gates to use for compilation with qubit indices they act upon.
+</ParamField>
+
+<ParamField path="pulses" type="object">
+  Qtrl PulseManager or file path for pulse configuration.
+</ParamField>
+
+<ParamField path="variables" type="object">
+  Qtrl VariableManager or file path for variable configuration.
+</ParamField>
+
+<ResponseField name="return" type="CompilerOutput">
+  Object with optimized circuit(s) and optional qtrl Sequence for pulse sequences.
+</ResponseField>
+
+### qscout_compile
+
+Compiles circuit(s) for QSCOUT trapped-ion testbed.
+
+```python
+qscout_compile(
+    circuits: cirq.Circuit | Sequence[cirq.Circuit],
+    target: str = "qscout_peregrine_qpu",
+    *,
+    mirror_swaps: bool = False,
+    base_entangling_gate: str = "xx",
+    num_qubits: int | None = None,
+    error_rates: SupportsItems[tuple[int, ...], float] | None = None,
+    atol: float = 1e-8,
+    atol_map: SupportsItems[tuple[int, ...], float] | None = None,
+    **kwargs
+) -> CompilerOutput
+```
+
+<ParamField path="circuits" type="cirq.Circuit | Sequence[cirq.Circuit]">
+  Circuit(s) to compile.
+</ParamField>
+
+<ParamField path="target" type="str" default="qscout_peregrine_qpu">
+  QSCOUT device target.
+</ParamField>
+
+<ParamField path="mirror_swaps" type="bool" default="False">
+  Use mirror swapping to reduce two-qubit gate overhead.
+</ParamField>
+
+<ParamField path="base_entangling_gate" type="str" default="xx">
+  Base entangling gate: "xx", "zz", "sxx", or "szz".
+</ParamField>
+
+<ParamField path="num_qubits" type="int | None">
+  Number of qubits to initialize in the returned Jaqal program.
+</ParamField>
+
+<ParamField path="error_rates" type="SupportsItems[tuple[int, ...], float] | None">
+  Dictionary mapping qubit index tuples to relative error rates.
+</ParamField>
+
+<ParamField path="atol" type="float" default="1e-8">
+  Tolerance for approximate compilation.
+</ParamField>
+
+<ParamField path="atol_map" type="SupportsItems[tuple[int, ...], float] | None">
+  Dictionary mapping qubit index tuples to compilation tolerances.
+</ParamField>
+
+<ResponseField name="return" type="CompilerOutput">
+  Object with optimized cirq.Circuit(s) and corresponding Jaqal program(s).
+</ResponseField>
+
+### ibmq_compile
+
+Compiles circuit(s) for IBM Quantum devices.
+
+```python
+ibmq_compile(
+    circuits: cirq.Circuit | Sequence[cirq.Circuit],
+    target: str,
+    *,
+    dynamical_decoupling: bool = True,
+    dd_strategy: str = "adaptive",
+    **kwargs
+) -> CompilerOutput
+```
+
+<ParamField path="circuits" type="cirq.Circuit | Sequence[cirq.Circuit]">
+  Circuit(s) to compile.
+</ParamField>
+
+<ParamField path="target" type="str">
+  IBM device target.
+</ParamField>
+
+<ParamField path="dynamical_decoupling" type="bool" default="True">
+  Apply dynamical decoupling optimization.
+</ParamField>
+
+<ParamField path="dd_strategy" type="str" default="adaptive">
+  Dynamical decoupling strategy: "standard", "syncopated", or "adaptive".
+</ParamField>
+
+<ResponseField name="return" type="CompilerOutput">
+  Object with compiled cirq.Circuit(s) and optional pulse schedule(s).
+</ResponseField>
+
+### resource_estimate
+
+Generates resource estimates for circuit(s).
+
+```python
+resource_estimate(
+    circuits: cirq.Circuit | Sequence[cirq.Circuit],
+    target: str | None = None
+) -> ResourceEstimate | list[ResourceEstimate]
+```
+
+<ParamField path="circuits" type="cirq.Circuit | Sequence[cirq.Circuit]">
+  Circuit(s) to estimate resources for.
+</ParamField>
+
+<ParamField path="target" type="str | None">
+  Target device name.
+</ParamField>
+
+<ResponseField name="return" type="ResourceEstimate | list[ResourceEstimate]">
+  ResourceEstimate(s) containing resource costs after compilation.
+</ResponseField>
+
+### submit_aces
+
+Submits jobs for the ACES characterization protocol.
+
+```python
+submit_aces(
+    target: str,
+    qubits: Sequence[int],
+    shots: int,
+    num_circuits: int,
+    mirror_depth: int,
+    extra_depth: int,
+    method: str | None = None,
+    noise: str | cirq.NoiseModel | None = None,
+    error_prob: float | tuple[float, float, float] | None = None,
+    tag: str | None = None,
+    lifespan: int | None = None,
+    weights: Iterable[int] | None = None
+) -> str
+```
+
+<ParamField path="target" type="str">
+  Device target to characterize.
+</ParamField>
+
+<ParamField path="qubits" type="Sequence[int]">
+  Qubit indices to characterize.
+</ParamField>
+
+<ParamField path="shots" type="int">
+  Number of shots per circuit.
+</ParamField>
+
+<ParamField path="num_circuits" type="int">
+  Number of random circuits to use.
+</ParamField>
+
+<ParamField path="mirror_depth" type="int">
+  Half-depth of the mirror portion of random circuits.
+</ParamField>
+
+<ParamField path="extra_depth" type="int">
+  Depth of the fully random portion of random circuits.
+</ParamField>
+
+<ParamField path="method" type="str | None">
+  Execution method type.
+</ParamField>
+
+<ParamField path="noise" type="str | cirq.NoiseModel | None">
+  Noise model: "symmetric_depolarize", "phase_flip", "bit_flip", "asymmetric_depolarize", or cirq.NoiseModel.
+</ParamField>
+
+<ParamField path="error_prob" type="float | tuple[float, float, float] | None">
+  Error probabilities for the noise model.
+</ParamField>
+
+<ParamField path="tag" type="str | None">
+  Tag for submitted jobs.
+</ParamField>
+
+<ParamField path="lifespan" type="int | None">
+  How long to store jobs (in days).
+</ParamField>
+
+<ParamField path="weights" type="Iterable[int] | None">
+  Valid Pauli string weights for probes.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  Job ID for the ACES job.
+</ResponseField>
+
+### submit_dfe
+
+Submits jobs for the Direct Fidelity Estimation protocol.
+
+```python
+submit_dfe(
+    rho_1: tuple[cirq.AbstractCircuit, str],
+    rho_2: tuple[cirq.AbstractCircuit, str],
+    num_random_bases: int,
+    shots: int,
+    **kwargs
+) -> list[str]
+```
+
+<ParamField path="rho_1" type="tuple[cirq.AbstractCircuit, str]">
+  Tuple containing circuit to prepare first state and target name.
+</ParamField>
+
+<ParamField path="rho_2" type="tuple[cirq.AbstractCircuit, str]">
+  Tuple containing circuit to prepare second state and target name.
+</ParamField>
+
+<ParamField path="num_random_bases" type="int">
+  Number of random bases to measure each state in.
+</ParamField>
+
+<ParamField path="shots" type="int">
+  Number of shots per random basis.
+</ParamField>
+
+<ResponseField name="return" type="list[str]">
+  List of two job IDs to pass to process_dfe().
+</ResponseField>
+
+### process_dfe
+
+Processes DFE protocol results.
+
+```python
+process_dfe(ids: list[str]) -> float
+```
+
+<ParamField path="ids" type="list[str]">
+  List of two job IDs from submit_dfe().
+</ParamField>
+
+<ResponseField name="return" type="float">
+  Estimated fidelity between the two states.
+</ResponseField>
+
+## Example usage
+
+```python
+import cirq
+import cirq_superstaq as css
+
+# Initialize service
+service = css.Service(api_key="YOUR_API_KEY")
+
+# Create a simple circuit
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0, q1, key='result')
+)
+
+# Submit job
+job = service.create_job(
+    circuit,
+    repetitions=1000,
+    target="ss_unconstrained_simulator"
+)
+
+# Get results
+counts = job.counts()
+print(counts)
+```

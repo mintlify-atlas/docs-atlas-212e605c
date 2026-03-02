@@ -1,0 +1,743 @@
+---
+title: Data models
+description: Pydantic data models for Superstaq API communication
+---
+
+The `general_superstaq.models` module provides Pydantic data models used for communication with the Superstaq server. These models ensure type safety and validation for API requests and responses.
+
+## Enumerations
+
+### JobType
+
+The different types of jobs that can be submitted through Superstaq.
+
+<ResponseField name="SUBMIT" type="str">
+  A job that involves submitting circuits to an external device. Value: `"submit"`
+</ResponseField>
+
+<ResponseField name="SIMULATE" type="str">
+  A job that requires superstaq to simulate circuits. Value: `"simulate"`
+</ResponseField>
+
+<ResponseField name="COMPILE" type="str">
+  A job that only involves compiling a circuit for some given device. Value: `"compile"`
+</ResponseField>
+
+<ResponseField name="CONVERT" type="str">
+  A job that only involves converting circuits between e.g. qiskit and cirq. Value: `"convert"`
+</ResponseField>
+
+```python
+from general_superstaq.models import JobType
+
+job_type = JobType.SUBMIT
+print(job_type.value)  # "submit"
+```
+
+### SimMethod
+
+The different simulation methods that are available.
+
+<ResponseField name="NOISE_SIM" type="str">
+  The simulation applies noise. If used with device simulation, this applies realistic device noise; otherwise the noise needs to be provided by the user (via the options dict). Value: `"noise-sim"`
+</ResponseField>
+
+<ResponseField name="SIM" type="str">
+  Samples the circuits without any noise. Value: `"sim"`
+</ResponseField>
+
+```python
+from general_superstaq.models import SimMethod
+
+sim_method = SimMethod.SIM
+```
+
+### CircuitType
+
+The different languages that are recognized by Superstaq.
+
+<ResponseField name="CIRQ" type="str">
+  Cirq circuit format. Value: `"cirq"`
+</ResponseField>
+
+<ResponseField name="QISKIT" type="str">
+  Qiskit circuit format. Value: `"qiskit"`
+</ResponseField>
+
+<ResponseField name="QASM" type="str">
+  QASM circuit format. Value: `"qasm"`
+</ResponseField>
+
+```python
+from general_superstaq.models import CircuitType
+
+circuit_type = CircuitType.CIRQ
+```
+
+### CircuitStatus
+
+The possible statuses of a job/circuit.
+
+<ResponseField name="RECEIVED" type="str">
+  The job has been received (and accepted) to the server and is awaiting further action.
+</ResponseField>
+
+<ResponseField name="AWAITING_COMPILE" type="str">
+  The job is waiting for a worker to compile.
+</ResponseField>
+
+<ResponseField name="AWAITING_SUBMISSION" type="str">
+  The job is waiting for a worker to submit the circuit to an external device.
+</ResponseField>
+
+<ResponseField name="AWAITING_SIMULATION" type="str">
+  The job is waiting for a worker to simulate.
+</ResponseField>
+
+<ResponseField name="COMPILING" type="str">
+  The job is being compiled by a worker.
+</ResponseField>
+
+<ResponseField name="RUNNING" type="str">
+  The job is currently running on a device. SUBMIT jobs only.
+</ResponseField>
+
+<ResponseField name="SIMULATING" type="str">
+  The job is currently being simulated. SIMULATE jobs only.
+</ResponseField>
+
+<ResponseField name="PENDING" type="str">
+  When a job has been submitted and is waiting to be run on a QPU. SUBMIT jobs only.
+</ResponseField>
+
+<ResponseField name="FAILED" type="str">
+  The job failed. A reason should be stored in the job.
+</ResponseField>
+
+<ResponseField name="UNRECOGNIZED" type="str">
+  Something has gone wrong! (Treated as terminal)
+</ResponseField>
+
+<ResponseField name="COMPLETED" type="str">
+  The job is completed.
+</ResponseField>
+
+<ResponseField name="CANCELLED" type="str">
+  The job was cancelled. A reason should be stored in the job.
+</ResponseField>
+
+<ResponseField name="DELETED" type="str">
+  When a job has been deleted.
+</ResponseField>
+
+```python
+from general_superstaq.models import CircuitStatus, TERMINAL_CIRCUIT_STATES
+
+if status in TERMINAL_CIRCUIT_STATES:
+    print("Job has finished")
+```
+
+### TargetStatus
+
+The current status of a Superstaq Target.
+
+<ResponseField name="AVAILABLE" type="str">
+  Target is currently accepting new jobs.
+</ResponseField>
+
+<ResponseField name="DEV_ONLY" type="str">
+  Target is in maintenance mode.
+</ResponseField>
+
+<ResponseField name="OFFLINE" type="str">
+  Target is temporarily unavailable for job submission.
+</ResponseField>
+
+<ResponseField name="RETIRED" type="str">
+  Target has been permanently retired.
+</ResponseField>
+
+<ResponseField name="UNSUPPORTED" type="str">
+  Target does not support job submission through Superstaq.
+</ResponseField>
+
+## Job models
+
+### NewJob
+
+The data model for submitting new jobs.
+
+<ParamField path="job_type" type="JobType" required>
+  The job type.
+</ParamField>
+
+<ParamField path="target" type="str" required>
+  The target device.
+</ParamField>
+
+<ParamField path="circuits" type="str" required>
+  Serialized input circuits.
+</ParamField>
+
+<ParamField path="circuit_type" type="CircuitType" required>
+  The input circuit type.
+</ParamField>
+
+<ParamField path="verbatim" type="bool" default="False">
+  Whether to skip compile step.
+</ParamField>
+
+<ParamField path="shots" type="int" default="0">
+  Number of shots (must be >= 0).
+</ParamField>
+
+<ParamField path="dry_run" type="bool" default="False">
+  Flag for a dry-run.
+</ParamField>
+
+<ParamField path="sim_method" type="SimMethod | None" default="None">
+  The simulation method to use. Only used on simulation jobs.
+</ParamField>
+
+<ParamField path="priority" type="int" default="0">
+  Optional priority level. Note that different roles have their own maximum priority level.
+</ParamField>
+
+<ParamField path="options_dict" type="dict[str, Any]" default="{}">
+  Options dictionary with additional configuration detail.
+</ParamField>
+
+<ParamField path="tags" type="list[str]" default="[]">
+  Optional tags.
+</ParamField>
+
+<ParamField path="metadata" type="dict[str, Any]" default="{}">
+  Additional metadata passed by the user.
+</ParamField>
+
+```python
+from general_superstaq.models import NewJob, JobType, CircuitType
+
+new_job = NewJob(
+    job_type=JobType.SUBMIT,
+    target="ibmq_qasm_simulator",
+    circuits=serialized_circuits,
+    circuit_type=CircuitType.CIRQ,
+    shots=100,
+    tags=["experiment-1"]
+)
+```
+
+### NewJobResponse
+
+Model for the response when a new job is submitted.
+
+<ResponseField name="job_id" type="uuid.UUID">
+  The job ID for the submitted job.
+</ResponseField>
+
+<ResponseField name="num_circuits" type="int">
+  The number of circuits in the job.
+</ResponseField>
+
+```python
+from general_superstaq.models import NewJobResponse
+
+response = NewJobResponse(job_id="123e4567-e89b-12d3-a456-426614174000", num_circuits=5)
+print(f"Job {response.job_id} created with {response.num_circuits} circuits")
+```
+
+### JobData
+
+A class to store data for a Superstaq job which is returned through to the client.
+
+<ResponseField name="job_type" type="JobType">
+  The type of job being submitted.
+</ResponseField>
+
+<ResponseField name="statuses" type="list[CircuitStatus]">
+  The current status of each circuit in the job.
+</ResponseField>
+
+<ResponseField name="status_messages" type="list[str | None]">
+  Any status messages for each circuit in the job.
+</ResponseField>
+
+<ResponseField name="user_email" type="str">
+  The email address of the user who submitted the job.
+</ResponseField>
+
+<ResponseField name="target" type="str">
+  The target that the job was submitted to.
+</ResponseField>
+
+<ResponseField name="provider_id" type="list[str | None]">
+  Any provider side ID's for each circuit in the job.
+</ResponseField>
+
+<ResponseField name="num_circuits" type="int">
+  Number of circuits in the job.
+</ResponseField>
+
+<ResponseField name="compiled_circuits" type="list[str | None]">
+  Compiled versions of each input circuits.
+</ResponseField>
+
+<ResponseField name="input_circuits" type="list[str]">
+  The input circuits as serialized strings.
+</ResponseField>
+
+<ResponseField name="circuit_type" type="CircuitType">
+  The circuit type used for representing the circuits.
+</ResponseField>
+
+<ResponseField name="counts" type="list[dict[str, int] | None]">
+  Counts for each input circuit (if available/relevant).
+</ResponseField>
+
+<ResponseField name="results_dicts" type="list[str | None]">
+  Serialized results dictionary for each input circuit (if available/relevant).
+</ResponseField>
+
+<ResponseField name="shots" type="list[int]">
+  Number of shots for each circuit.
+</ResponseField>
+
+<ResponseField name="dry_run" type="bool">
+  Flag to indicate a dry-run job.
+</ResponseField>
+
+<ResponseField name="submission_timestamp" type="datetime.datetime">
+  Timestamp when the job was submitted.
+</ResponseField>
+
+<ResponseField name="last_updated_timestamp" type="list[datetime.datetime | None]">
+  Timestamp for when each circuit was last updated.
+</ResponseField>
+
+<ResponseField name="initial_logical_to_physicals" type="list[dict[int, int] | None]">
+  Serialized initial logical-to-physical mapping for each circuit.
+</ResponseField>
+
+<ResponseField name="final_logical_to_physicals" type="list[dict[int, int] | None]">
+  Serialized final logical-to-physical mapping for each circuit.
+</ResponseField>
+
+<ResponseField name="logical_qubits" type="list[str | None]">
+  Serialized logical qubits of compiled circuit. Only provided for CIRQ circuit type.
+</ResponseField>
+
+<ResponseField name="physical_qubits" type="list[str | None]">
+  Serialized physical qubits of the device. Only provided for CIRQ circuit type.
+</ResponseField>
+
+<ResponseField name="tags" type="list[str]" default="[]">
+  Any tags attached to this job.
+</ResponseField>
+
+<ResponseField name="metadata" type="dict[str, Any]" default="{}">
+  Additional metadata passed by the user.
+</ResponseField>
+
+### JobQuery
+
+The query model for retrieving jobs. Using multiple values in a field is interpreted as logical OR while providing values for multiple fields is interpreted as logical AND.
+
+<ParamField path="user_email" type="list[str] | None" default="None">
+  List of user emails to include.
+</ParamField>
+
+<ParamField path="job_id" type="list[uuid.UUID] | None" default="None">
+  List of job IDs to include.
+</ParamField>
+
+<ParamField path="target_name" type="list[str] | None" default="None">
+  List of targets to include.
+</ParamField>
+
+<ParamField path="status" type="list[CircuitStatus] | None" default="None">
+  List of statuses to include.
+</ParamField>
+
+<ParamField path="tags" type="list[str] | None" default="None">
+  Filter for jobs with a given tag.
+</ParamField>
+
+<ParamField path="min_priority" type="int | None" default="None">
+  Minimum priority to include.
+</ParamField>
+
+<ParamField path="max_priority" type="int | None" default="None">
+  Maximum priority to include.
+</ParamField>
+
+<ParamField path="submitted_before" type="datetime.datetime | None" default="None">
+  Filter for jobs submitted before this date.
+</ParamField>
+
+<ParamField path="submitted_after" type="datetime.datetime | None" default="None">
+  Filter for jobs submitted after this date.
+</ParamField>
+
+```python
+from general_superstaq.models import JobQuery, CircuitStatus
+import datetime
+
+query = JobQuery(
+    status=[CircuitStatus.COMPLETED],
+    tags=["experiment-1"],
+    submitted_after=datetime.datetime(2026, 1, 1)
+)
+```
+
+### JobCancellationResults
+
+The results from cancelling a job.
+
+<ResponseField name="succeeded" type="list[str]">
+  List of circuits that successfully cancelled.
+</ResponseField>
+
+<ResponseField name="message" type="str">
+  The server message.
+</ResponseField>
+
+## User models
+
+### UserInfo
+
+Model for the user info returned to the client.
+
+<ResponseField name="name" type="str">
+  User name.
+</ResponseField>
+
+<ResponseField name="email" type="str">
+  User email.
+</ResponseField>
+
+<ResponseField name="role" type="str">
+  User role.
+</ResponseField>
+
+<ResponseField name="balance" type="float">
+  User balance.
+</ResponseField>
+
+<ResponseField name="token" type="str">
+  User API token.
+</ResponseField>
+
+<ResponseField name="user_id" type="uuid.UUID">
+  User id.
+</ResponseField>
+
+### NewUser
+
+Model for creating new users.
+
+<ParamField path="name" type="str" required>
+  User name.
+</ParamField>
+
+<ParamField path="email" type="str" required>
+  User email.
+</ParamField>
+
+<ParamField path="role" type="str | None" default="None">
+  User role.
+</ParamField>
+
+<ParamField path="initial_balance" type="float | None" default="None">
+  Initial balance.
+</ParamField>
+
+### UpdateUserDetails
+
+Model for requests which modify user details.
+
+<ParamField path="name" type="str | None" default="None">
+  New user name.
+</ParamField>
+
+<ParamField path="role" type="str | None" default="None">
+  New user role.
+</ParamField>
+
+<ParamField path="balance" type="float | None" default="None">
+  New user balance.
+</ParamField>
+
+### UserQuery
+
+Model for querying the database to retrieve users. Use of lists implies logical OR. Providing multiple fields (e.g. name and email) implies logical AND.
+
+<ParamField path="name" type="Sequence[str] | None" default="None">
+  List of user names to filter for.
+</ParamField>
+
+<ParamField path="email" type="Sequence[str] | None" default="None">
+  List of user emails to filter for.
+</ParamField>
+
+<ParamField path="role" type="Sequence[str] | None" default="None">
+  List of user roles to filter for.
+</ParamField>
+
+<ParamField path="user_id" type="Sequence[uuid.UUID] | None" default="None">
+  List of explicit user IDs to filter for.
+</ParamField>
+
+### UserTokenResponse
+
+Model for returning a user token to the client, either when adding a new user or regenerating the token.
+
+<ResponseField name="email" type="str">
+  The user's email address.
+</ResponseField>
+
+<ResponseField name="token" type="str">
+  The user's new token.
+</ResponseField>
+
+### BalanceResponse
+
+Model for returning a single user balance.
+
+<ResponseField name="email" type="str">
+  The user's email address.
+</ResponseField>
+
+<ResponseField name="balance" type="float">
+  The user's balance.
+</ResponseField>
+
+## Target models
+
+### TargetModel
+
+Model for the details of a target.
+
+<ResponseField name="target_name" type="str">
+  The target name.
+</ResponseField>
+
+<ResponseField name="supports_submit" type="bool">
+  Target allows job submission.
+</ResponseField>
+
+<ResponseField name="supports_submit_qubo" type="bool">
+  Target allows QUBO submission.
+</ResponseField>
+
+<ResponseField name="supports_compile" type="bool">
+  Target allows circuit compilation.
+</ResponseField>
+
+<ResponseField name="available" type="bool">
+  Target is currently available.
+</ResponseField>
+
+<ResponseField name="retired" type="bool">
+  Target is retired.
+</ResponseField>
+
+<ResponseField name="simulator" type="bool">
+  Target is simulator.
+</ResponseField>
+
+<ResponseField name="accessible" type="bool">
+  Target is accessible to user.
+</ResponseField>
+
+### GetTargetsFilterModel
+
+Model for /get_target requests.
+
+<ParamField path="simulator" type="bool | None" default="None">
+  Include Superstaq targets that are/not simulators.
+</ParamField>
+
+<ParamField path="supports_submit" type="bool | None" default="None">
+  Include Superstaq targets that allow/do not allow job submission.
+</ParamField>
+
+<ParamField path="supports_submit_qubo" type="bool | None" default="None">
+  Include Superstaq targets that allow/do not allow QUBO submission.
+</ParamField>
+
+<ParamField path="supports_compile" type="bool | None" default="None">
+  Include Superstaq targets that allow/do not allow circuit compilation.
+</ParamField>
+
+<ParamField path="available" type="bool | None" default="None">
+  Include Superstaq targets that are/not currently available.
+</ParamField>
+
+<ParamField path="retired" type="bool | None" default="False">
+  Include Superstaq targets that are retired.
+</ParamField>
+
+<ParamField path="accessible" type="bool | None" default="None">
+  Include only Superstaq targets that are/aren't accessible to the user.
+</ParamField>
+
+### RetrieveTargetInfoModel
+
+Model for retrieving detailed target info.
+
+<ParamField path="target" type="str" required>
+  The target's name.
+</ParamField>
+
+<ParamField path="options_dict" type="dict[str, Any]" default="{}">
+  The details of the target.
+</ParamField>
+
+### TargetInfo
+
+Model containing detailed info about a specific instance of a target.
+
+<ResponseField name="target_info" type="dict[str, object]">
+  Dictionary containing target information.
+</ResponseField>
+
+## Configuration models
+
+### ExternalProviderCredentials
+
+Model for storing a user's credentials for external providers.
+
+<ParamField path="cq_token" type="str | None" default="None">
+  CQ cloud token.
+</ParamField>
+
+<ParamField path="cq_project_id" type="str | None" default="None">
+  CQ project ID.
+</ParamField>
+
+<ParamField path="cq_org_id" type="str | None" default="None">
+  CQ organization ID.
+</ParamField>
+
+<ParamField path="ibmq_token" type="str | None" default="None">
+  IBM Quantum token.
+</ParamField>
+
+<ParamField path="ibmq_instance" type="str | None" default="None">
+  IBM Quantum instance.
+</ParamField>
+
+<ParamField path="ibmq_channel" type="str | None" default="None">
+  IBM Quantum channel.
+</ParamField>
+
+<ParamField path="qtm_token" type="str | None" default="None">
+  QTM token.
+</ParamField>
+
+<ParamField path="qtm_email" type="str | None" default="None">
+  QTM email.
+</ParamField>
+
+### AQTConfigs
+
+Model for AQT configs.
+
+<ResponseField name="pulses" type="str">
+  The serialized pulses.
+</ResponseField>
+
+<ResponseField name="variables" type="str">
+  The serialized variables.
+</ResponseField>
+
+## Worker models
+
+### WorkerTask
+
+The data model used for sending task data to machine workers.
+
+<ResponseField name="circuit_ref" type="str">
+  The circuit reference.
+</ResponseField>
+
+<ResponseField name="circuit" type="str">
+  Serialized representation of the circuit.
+</ResponseField>
+
+<ResponseField name="shots" type="int">
+  The number of shots to perform.
+</ResponseField>
+
+<ResponseField name="metadata" type="dict[str, Any]" default="{}">
+  Additional metadata passed by the user.
+</ResponseField>
+
+<ResponseField name="user_email" type="str | None" default="None">
+  The user's email.
+</ResponseField>
+
+<ResponseField name="tags" type="list[str]" default="[]">
+  A list of tags for the job.
+</ResponseField>
+
+<ResponseField name="user_role" type="str" default="UNKNOWN">
+  The role of the user that submitted the job if known.
+</ResponseField>
+
+### WorkerTaskStatus
+
+Response for when the status of a task is returned.
+
+<ResponseField name="circuit_ref" type="str">
+  The circuit reference.
+</ResponseField>
+
+<ResponseField name="status" type="CircuitStatus">
+  The current status of the task.
+</ResponseField>
+
+### WorkerTaskResults
+
+The data sent by the machine workers when returning job results.
+
+<ResponseField name="circuit_ref" type="str">
+  The circuit reference.
+</ResponseField>
+
+<ResponseField name="status" type="CircuitStatus">
+  The current status of the task.
+</ResponseField>
+
+<ResponseField name="status_message" type="str | None" default="None">
+  Description of the task status.
+</ResponseField>
+
+<ResponseField name="successful_shots" type="int | None" default="None">
+  The total number of successful shots (used for validation).
+</ResponseField>
+
+<ResponseField name="measurements" type="dict[str, set[int]] | None" default="None">
+  Mapping of bitstrings to a list of shot indexes.
+</ResponseField>
+
+## Base model
+
+### DefaultPydanticModel
+
+Default pydantic model used across the superstaq server. All data models inherit from this base class.
+
+**Configuration:**
+- `use_enum_values=True`: Enums are serialized to their values
+- `extra="ignore"`: Extra fields are ignored during validation
+- `validate_assignment=True`: Field assignments are validated
+- `validate_default=True`: Default values are validated
+
+```python
+from general_superstaq.models import DefaultPydanticModel
+
+class MyModel(DefaultPydanticModel):
+    field1: str
+    field2: int = 0
+```

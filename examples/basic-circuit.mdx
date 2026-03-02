@@ -1,0 +1,193 @@
+---
+title: Basic circuit creation and execution
+description: Learn how to create and execute quantum circuits with Superstaq
+---
+
+## Overview
+
+This guide demonstrates how to create basic quantum circuits using either Qiskit or Cirq and execute them using Superstaq. You'll learn how to set up the provider, create simple circuits, and run simulations.
+
+## Setting up Superstaq
+
+<Tabs>
+  <Tab title="Qiskit">
+    First, install and import the required packages:
+
+    ```python
+    import qiskit
+    import qiskit_superstaq as qss
+
+    # Initialize the Superstaq provider
+    provider = qss.SuperstaqProvider()
+    ```
+
+    <Note>
+      The provider will automatically use your `SUPERSTAQ_API_KEY` environment variable. Alternatively, you can pass the API key directly: `qss.SuperstaqProvider(api_key="your_key")`.
+    </Note>
+  </Tab>
+
+  <Tab title="Cirq">
+    First, install and import the required packages:
+
+    ```python
+    import cirq
+    import cirq_superstaq as css
+
+    # Initialize the Superstaq service
+    service = css.Service()
+    ```
+
+    <Note>
+      The service will automatically use your `SUPERSTAQ_API_KEY` environment variable. Alternatively, you can pass the API key directly: `css.Service(api_key="your_key")`.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Creating a Bell state circuit
+
+<Tabs>
+  <Tab title="Qiskit">
+    Create a simple Bell state circuit:
+
+    ```python
+    # Create a 2-qubit circuit with 2 classical bits
+    qc = qiskit.QuantumCircuit(2, 2)
+    qc.h(0)
+    qc.cx(0, 1)
+    qc.measure([0, 1], [0, 1])
+
+    # Visualize the circuit
+    qc.draw()
+    ```
+
+    This creates a maximally entangled Bell state between two qubits.
+  </Tab>
+
+  <Tab title="Cirq">
+    Create a simple Bell state circuit:
+
+    ```python
+    # Define qubits
+    q0 = cirq.LineQubit(0)
+    q1 = cirq.LineQubit(1)
+
+    # Create the circuit
+    circuit = cirq.Circuit(
+        cirq.H(q0),
+        cirq.CNOT(q0, q1),
+        cirq.measure(q0, q1)
+    )
+
+    # Visualize the circuit
+    print(circuit)
+    ```
+
+    This creates a maximally entangled Bell state between two qubits.
+  </Tab>
+</Tabs>
+
+## Running simulations
+
+<Steps>
+  <Step title="Choose a target backend">
+    Superstaq supports multiple quantum backends. For free simulations, use the `"dry-run"` method.
+
+    <Tabs>
+      <Tab title="Qiskit">
+        ```python
+        # Get the backend (IBM Fez QPU in this example)
+        backend = provider.get_backend("ibmq_fez_qpu")
+        ```
+      </Tab>
+
+      <Tab title="Cirq">
+        ```python
+        # Target backend (IBM Fez QPU in this example)
+        target = "ibmq_fez_qpu"
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Execute the circuit">
+    Run your circuit with the dry-run method:
+
+    <Tabs>
+      <Tab title="Qiskit">
+        ```python
+        # Run the circuit with dry-run simulation
+        job = backend.run(qc, method="dry-run", shots=100)
+
+        # Get the results
+        result = job.result().get_counts()
+        print(result)
+        # Output: {'00': 49, '11': 51}
+        ```
+      </Tab>
+
+      <Tab title="Cirq">
+        ```python
+        # Create and run the job
+        job = service.create_job(
+            circuit,
+            target=target,
+            repetitions=100,
+            method="dry-run"
+        )
+
+        # Get the results
+        counts = job.counts(0)
+        print(counts)
+        # Output: {'00': 49, '11': 51}
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Analyze results">
+    For a Bell state, you should see roughly equal counts of `00` and `11`, demonstrating quantum entanglement.
+
+    <Tip>
+      The `dry-run` method provides fast, free simulations ideal for testing and development. For actual quantum hardware execution, see the [Hardware execution](/examples/hardware-execution) guide.
+    </Tip>
+  </Step>
+</Steps>
+
+## Using different simulators
+
+Superstaq provides access to multiple simulator backends:
+
+<CodeGroup>
+```python Unconstrained simulator
+# Qiskit
+backend = provider.get_backend("ss_unconstrained_simulator")
+job = backend.run(qc, shots=1000)
+
+# Cirq
+job = service.create_job(circuit, target="ss_unconstrained_simulator", repetitions=1000)
+```
+
+```python AWS SV1 simulator
+# Qiskit
+backend = provider.get_backend("aws_sv1_simulator")
+job = backend.run(qc, shots=1000)
+
+# Cirq
+job = service.create_job(circuit, target="aws_sv1_simulator", repetitions=1000)
+```
+
+```python CQ Sqale simulator
+# Qiskit
+backend = provider.get_backend("cq_sqale_simulator")
+job = backend.run(qc, shots=1000)
+
+# Cirq
+job = service.create_job(circuit, target="cq_sqale_simulator", repetitions=1000)
+```
+</CodeGroup>
+
+## Next steps
+
+- Learn about [job submission](/examples/job-submission) for asynchronous execution
+- Explore [hardware execution](/examples/hardware-execution) on real quantum devices
+- Check your [account balance](/api/general/service) before running on hardware

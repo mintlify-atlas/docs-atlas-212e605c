@@ -1,0 +1,134 @@
+---
+title: Benchmark
+description: Base class for all Supermarq quantum benchmarks
+---
+
+## Overview
+
+The `Benchmark` class is the abstract base class for all quantum benchmark applications in Supermarq. Each benchmark represents a fully defined application with specific parameters that generate circuits and compute performance scores.
+
+## Class definition
+
+```python
+class Benchmark:
+    """Class representing a quantum benchmark application."""
+```
+
+Concrete subclasses must implement the abstract methods `circuit()` and `score()`.
+
+## Key concepts
+
+Each instantiation of a `Benchmark` object represents a single, fully defined benchmark application. All relevant parameters for a benchmark should be passed upon creation, and will be used to generate the correct circuit and compute the final score.
+
+## Abstract methods
+
+### circuit()
+
+Returns the quantum circuit(s) corresponding to the current benchmark parameters.
+
+<ParamField path="return" type="cirq.Circuit | list[cirq.Circuit]">
+  The quantum circuit(s) for this benchmark instance
+</ParamField>
+
+<Note>
+  This method must be implemented by all concrete subclasses.
+</Note>
+
+### score()
+
+Returns a normalized [0,1] score reflecting device performance.
+
+<ParamField path="counts" type="Any">
+  Dictionary(s) containing the measurement counts from execution
+</ParamField>
+
+<ResponseField name="return" type="float">
+  Normalized score between 0 and 1, where higher values indicate better performance
+</ResponseField>
+
+<Note>
+  This method must be implemented by all concrete subclasses.
+</Note>
+
+## Concrete methods
+
+### cirq_circuit()
+
+Returns the Cirq circuit(s) corresponding to the current benchmark parameters.
+
+```python
+def cirq_circuit(self) -> cirq.Circuit | list[cirq.Circuit]
+```
+
+<ResponseField name="return" type="cirq.Circuit | list[cirq.Circuit]">
+  The Cirq circuit(s) for this benchmark instance
+</ResponseField>
+
+This method calls the abstract `circuit()` method, which returns Cirq circuits by default.
+
+### qiskit_circuit()
+
+Returns the Qiskit circuit(s) corresponding to the current benchmark parameters.
+
+```python
+def qiskit_circuit(self) -> qiskit.QuantumCircuit | list[qiskit.QuantumCircuit]
+```
+
+<ResponseField name="return" type="qiskit.QuantumCircuit | list[qiskit.QuantumCircuit]">
+  The Qiskit circuit(s) for this benchmark instance
+</ResponseField>
+
+This method automatically converts the Cirq circuits to Qiskit format using the `supermarq.converters.cirq_to_qiskit()` converter.
+
+## Usage example
+
+```python
+import supermarq
+
+# Create a benchmark instance
+benchmark = supermarq.GHZ(num_qubits=5)
+
+# Get the circuit in Cirq format
+cirq_circuit = benchmark.cirq_circuit()
+
+# Or get it in Qiskit format
+qiskit_circuit = benchmark.qiskit_circuit()
+
+# Run the circuit on a device and get counts
+counts = run_circuit(qiskit_circuit)  # Your execution method
+
+# Compute the benchmark score
+score = benchmark.score(counts)
+print(f"Benchmark score: {score}")
+```
+
+## Implementation guidelines
+
+When creating a custom benchmark:
+
+1. Inherit from the `Benchmark` base class
+2. Implement the `circuit()` method to return your quantum circuit(s)
+3. Implement the `score()` method to evaluate device performance
+4. Pass all relevant parameters to the constructor
+5. Store parameters as instance attributes for use in circuit generation and scoring
+
+```python
+from supermarq.benchmark import Benchmark
+import cirq
+
+class MyBenchmark(Benchmark):
+    def __init__(self, num_qubits: int, depth: int):
+        self.num_qubits = num_qubits
+        self.depth = depth
+    
+    def circuit(self) -> cirq.Circuit:
+        # Generate your circuit here
+        qubits = cirq.LineQubit.range(self.num_qubits)
+        circuit = cirq.Circuit()
+        # Add operations...
+        return circuit
+    
+    def score(self, counts: dict[str, float]) -> float:
+        # Compute your score here
+        return score_value
+```

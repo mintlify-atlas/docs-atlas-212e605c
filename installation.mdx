@@ -1,0 +1,343 @@
+---
+title: Installation
+description: Install Superstaq packages for Python
+---
+
+Superstaq provides Python packages for both Qiskit and Cirq quantum programming frameworks. Choose the package that matches your preferred framework.
+
+## Requirements
+
+<Note>
+  Superstaq requires Python version 3.9 or higher. Supported versions include 3.9, 3.10, 3.11, 3.12, 3.13, and 3.14.
+</Note>
+
+Before installing Superstaq, ensure you have:
+
+- Python 3.9 or higher installed
+- pip (Python package installer)
+- A Superstaq API token from [superstaq.infleqtion.com](https://superstaq.infleqtion.com)
+
+## Choose your package
+
+Superstaq offers three packages:
+
+<CardGroup cols={3}>
+  <Card title="qiskit-superstaq" icon="q">
+    For Qiskit users
+  </Card>
+  <Card title="cirq-superstaq" icon="c">
+    For Cirq users
+  </Card>
+  <Card title="general-superstaq" icon="gear">
+    Core functionality (used internally)
+  </Card>
+</CardGroup>
+
+## Installation instructions
+
+<Tabs>
+  <Tab title="Qiskit">
+
+### Install qiskit-superstaq
+
+Install the package using pip:
+
+```bash
+pip install qiskit-superstaq
+```
+
+### Verify installation
+
+Verify that the package is installed correctly:
+
+```python
+import qiskit_superstaq as qss
+
+print(f"qiskit-superstaq version: {qss.__version__}")
+```
+
+### What gets installed
+
+When you install `qiskit-superstaq`, you get access to:
+
+- `SuperstaqProvider` - Main provider class for accessing Superstaq backends
+- `SuperstaqBackend` - Backend implementation for running circuits
+- `SuperstaqJob` and `SuperstaqJobV3` - Job management classes
+- Custom gates: `AceCR`, `AQTiCCXGate`, `AQTiToffoliGate`, `DDGate`, `ParallelGates`, `StrippedCZGate`, `ZZSwapGate`
+- Serialization utilities for circuit conversion
+- Compiler output analysis tools
+
+### Basic usage
+
+```python
+import qiskit
+import qiskit_superstaq as qss
+
+# Initialize the provider
+token = "your_superstaq_token_here"
+superstaq = qss.SuperstaqProvider(token)
+
+# Create a simple circuit
+qc = qiskit.QuantumCircuit(2, 2)
+qc.h(0)
+qc.cx(0, 1)
+qc.measure([0, 1], [0, 1])
+
+# Get a backend and run the circuit
+backend = superstaq.get_backend("ibmq_fez_qpu")
+job = backend.run(qc, shots=100, method="dry-run")
+print(job.result().get_counts())
+```
+
+  </Tab>
+  <Tab title="Cirq">
+
+### Install cirq-superstaq
+
+Install the package using pip:
+
+```bash
+pip install cirq-superstaq
+```
+
+### Verify installation
+
+Verify that the package is installed correctly:
+
+```python
+import cirq_superstaq as css
+
+print(f"cirq-superstaq version: {css.__version__}")
+```
+
+### What gets installed
+
+When you install `cirq-superstaq`, you get access to:
+
+- `Service` - Main service class for accessing Superstaq
+- `Job` and `JobV3` - Job management classes
+- `Sampler` - Cirq sampler implementation
+- Custom operations: `AceCR`, `AQTICCX`, `AQTITOFFOLI`, `Barrier`, `ParallelGates`, `RGate`, and many more
+- Custom gates: `BSwapPowGate`, `DDPowGate`, `QutritCZPowGate`, `StrippedCZGate`, `VirtualZPowGate`, `ZXPowGate`, `ZZSwapGate`
+- Multi-state discrimination circuits: `msd_5_to_1`, `msd_7_to_1`, `msd_15_to_1`
+- Serialization utilities with `SUPERSTAQ_RESOLVERS`
+- Resource counters and evaluation tools
+
+### Basic usage
+
+```python
+import cirq
+import cirq_superstaq as css
+
+# Initialize the service
+service = css.Service(
+    api_key="your_superstaq_token_here",
+    verbose=True
+)
+
+# Create a simple circuit
+q0 = cirq.LineQubit(0)
+q1 = cirq.LineQubit(1)
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0)
+)
+
+# Submit the circuit
+job = service.create_job(
+    circuit,
+    repetitions=100,
+    target="ibmq_fez_qpu",
+    method="dry-run"
+)
+print(job.status())
+print(job.counts(0))
+```
+
+  </Tab>
+  <Tab title="General">
+
+### Install general-superstaq
+
+The `general-superstaq` package contains core functionality shared across Superstaq clients:
+
+```bash
+pip install general-superstaq
+```
+
+<Note>
+  You typically don't need to install `general-superstaq` directly, as it's automatically installed as a dependency when you install `qiskit-superstaq` or `cirq-superstaq`.
+</Note>
+
+### What gets installed
+
+The `general-superstaq` package provides:
+
+- `Service` - Base service class
+- `ResourceEstimate` - Resource estimation utilities
+- Exception classes: `SuperstaqException`, `SuperstaqServerException`, `SuperstaqUnsuccessfulJobException`, `SuperstaqWarning`
+- Type definitions and validation utilities
+- API configuration: `API_URL`, `API_URL_V3`, `API_VERSION`
+- Models and serialization tools
+
+### Basic usage
+
+```python
+import general_superstaq as gss
+
+print(f"general-superstaq version: {gss.__version__}")
+print(f"API version: {gss.API_VERSION}")
+```
+
+  </Tab>
+</Tabs>
+
+## Development installation
+
+If you want to contribute to Superstaq or need the latest development version, you can install from source.
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the Superstaq repository from GitHub:
+    
+    ```bash
+    git clone git@github.com:Infleqtion/client-superstaq.git
+    cd client-superstaq
+    ```
+  </Step>
+
+  <Step title="Create a virtual environment">
+    Create and activate a Python virtual environment:
+    
+    ```bash
+    python3 -m venv venv_superstaq
+    source venv_superstaq/bin/activate
+    ```
+  </Step>
+
+  <Step title="Install in development mode">
+    Navigate to the package directory and install with development dependencies:
+    
+    <CodeGroup>
+    
+    ```bash Qiskit
+    cd qiskit-superstaq
+    python3 -m pip install -e ".[dev]"
+    ```
+    
+    ```bash Cirq
+    cd cirq-superstaq
+    python3 -m pip install -e ".[dev]"
+    ```
+    
+    ```bash General
+    cd general-superstaq
+    python3 -m pip install -e ".[dev]"
+    ```
+    
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Tip>
+  If you're working on multiple clients (e.g., both `qiskit-superstaq` and `cirq-superstaq`), you don't need to clone the repository multiple times or set up multiple virtual environments. Simply install the requirements in each client directory using the same virtual environment.
+</Tip>
+
+## Upgrading
+
+To upgrade to the latest version of a Superstaq package:
+
+<CodeGroup>
+
+```bash Qiskit
+pip install --upgrade qiskit-superstaq
+```
+
+```bash Cirq
+pip install --upgrade cirq-superstaq
+```
+
+```bash General
+pip install --upgrade general-superstaq
+```
+
+</CodeGroup>
+
+## Troubleshooting
+
+### Python version issues
+
+If you encounter errors related to Python version compatibility:
+
+```bash
+# Check your Python version
+python --version
+
+# If needed, use a specific Python version
+python3.11 -m pip install qiskit-superstaq
+```
+
+### Installation fails
+
+If installation fails, try:
+
+1. Upgrading pip: `pip install --upgrade pip`
+2. Using a fresh virtual environment
+3. Checking for conflicting packages
+
+### Import errors
+
+If you get import errors after installation:
+
+```python
+# Verify the package is installed
+import sys
+print(sys.path)
+
+# Check installed packages
+!pip list | grep superstaq
+```
+
+## Package dependencies
+
+Each Superstaq package has specific dependencies:
+
+- **qiskit-superstaq**: Requires Qiskit and general-superstaq
+- **cirq-superstaq**: Requires Cirq and general-superstaq
+- **general-superstaq**: Core package with minimal dependencies
+
+All dependencies are automatically installed when you install the main package.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Authentication"
+    icon="key"
+    href="/authentication"
+  >
+    Set up your API credentials
+  </Card>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Run your first quantum circuit
+  </Card>
+  <Card
+    title="API reference"
+    icon="code"
+    href="/api/general/service"
+  >
+    Explore the complete API documentation
+  </Card>
+  <Card
+    title="GitHub"
+    icon="github"
+    href="https://github.com/Infleqtion/client-superstaq"
+  >
+    View the source code
+  </Card>
+</CardGroup>

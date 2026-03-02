@@ -1,0 +1,247 @@
+---
+title: Running benchmarks
+---
+
+Learn how to execute Supermarq benchmarks on quantum hardware using Superstaq.
+
+## Basic workflow
+
+Every Supermarq benchmark follows the same three-step pattern:
+
+<Steps>
+  <Step title="Instantiate the benchmark">
+    Create a benchmark object with your desired parameters.
+    
+    ```python
+    import supermarq
+    
+    # Create a 3-qubit GHZ benchmark
+    benchmark = supermarq.benchmarks.GHZ(num_qubits=3)
+    ```
+  </Step>
+  
+  <Step title="Generate and execute the circuit">
+    Get the circuit and run it on quantum hardware.
+    
+    ```python
+    # Generate the circuit
+    circuit = benchmark.circuit()
+    
+    # Execute on hardware (via Superstaq, AWS Braket, IBM Qiskit, etc.)
+    counts = execute_circuit_on_quantum_hardware(circuit)
+    ```
+  </Step>
+  
+  <Step title="Compute the score">
+    Calculate the benchmark score from the measurement results.
+    
+    ```python
+    # Get normalized performance score
+    score = benchmark.score(counts)
+    print(f"Performance score: {score}")
+    ```
+  </Step>
+</Steps>
+
+## Complete example with Superstaq
+
+Here's a full example running the GHZ benchmark using Superstaq:
+
+```python
+import superstaq
+import supermarq
+
+# Initialize Superstaq client
+client = superstaq.Superstaq(api_key="YOUR_API_KEY")
+
+# Create a GHZ benchmark with 5 qubits using the ladder method
+ghz = supermarq.benchmarks.GHZ(num_qubits=5, method="ladder")
+
+# Generate the circuit
+ghz_circuit = ghz.circuit()
+
+# Submit to a quantum backend
+job = client.create_job(
+    circuit=ghz_circuit,
+    target="ibmq_brisbane",
+    repetitions=1000
+)
+
+# Wait for results
+result = job.result()
+counts = result.counts
+
+# Calculate benchmark score
+score = ghz.score(counts)
+print(f"GHZ benchmark score: {score}")
+```
+
+## Using different circuit formats
+
+Supermarq benchmarks support both Cirq and Qiskit:
+
+<Accordion title="Cirq circuits">
+  ```python
+  import supermarq
+  
+  benchmark = supermarq.benchmarks.GHZ(num_qubits=4)
+  
+  # Get Cirq circuit (default)
+  cirq_circuit = benchmark.cirq_circuit()
+  ```
+</Accordion>
+
+<Accordion title="Qiskit circuits">
+  ```python
+  import supermarq
+  
+  benchmark = supermarq.benchmarks.GHZ(num_qubits=4)
+  
+  # Get Qiskit circuit
+  qiskit_circuit = benchmark.qiskit_circuit()
+  ```
+</Accordion>
+
+## Benchmark parameters
+
+Each benchmark accepts different parameters to control its complexity and characteristics.
+
+### GHZ benchmark
+
+The GHZ benchmark supports three circuit construction methods:
+
+```python
+import supermarq
+
+# Ladder method (linear depth, nearest-neighbor)
+ghz_ladder = supermarq.benchmarks.GHZ(num_qubits=5, method="ladder")
+
+# Star method (linear depth, shared control)
+ghz_star = supermarq.benchmarks.GHZ(num_qubits=5, method="star")
+
+# Log-depth method (logarithmic depth fanout)
+ghz_logdepth = supermarq.benchmarks.GHZ(num_qubits=5, method="logdepth")
+```
+
+### Hamiltonian simulation benchmark
+
+Control the simulation time and timestep:
+
+```python
+import supermarq
+
+# Simulate a 6-qubit TFIM chain
+ham_sim = supermarq.benchmarks.HamiltonianSimulation(
+    num_qubits=6,
+    time_step=1,    # timestep in attoseconds
+    total_time=10   # total time in attoseconds
+)
+```
+
+### VQE proxy benchmark
+
+Configure the number of layers in the ansatz:
+
+```python
+import supermarq
+
+# VQE with 3 layers
+vqe = supermarq.benchmarks.VQEProxy(
+    num_qubits=4,
+    num_layers=3
+)
+
+# Returns two circuits: Z-basis and X-basis measurements
+circuits = vqe.circuit()
+
+# Execute both circuits and pass results to score
+counts_z = execute_circuit(circuits[0])
+counts_x = execute_circuit(circuits[1])
+score = vqe.score([counts_z, counts_x])
+```
+
+### Error correction benchmarks
+
+Bit-flip and phase-flip codes require initial state specification:
+
+```python
+import supermarq
+
+# Bit-flip code with 4 data qubits, 3 rounds
+bit_code = supermarq.benchmarks.BitCode(
+    num_data_qubits=4,
+    num_rounds=3,
+    bit_state=[0, 1, 0, 1]  # Initial state for each data qubit
+)
+
+# Phase-flip code
+phase_code = supermarq.benchmarks.PhaseCode(
+    num_data_qubits=4,
+    num_rounds=3,
+    phase_state=[0, 0, 1, 1]  # 0 -> |+>, 1 -> |->
+)
+```
+
+## Handling multi-circuit benchmarks
+
+Some benchmarks return multiple circuits that must be executed separately:
+
+```python
+import supermarq
+
+vqe = supermarq.benchmarks.VQEProxy(num_qubits=4)
+
+# Get both circuits
+circuits = vqe.circuit()
+
+# Execute each circuit
+all_counts = []
+for circuit in circuits:
+    counts = execute_circuit_on_quantum_hardware(circuit)
+    all_counts.append(counts)
+
+# Pass all results to score
+score = vqe.score(all_counts)
+```
+
+<Note>
+When a benchmark's `circuit()` method returns a list, you must execute all circuits and pass the counts to `score()` in the same order.
+</Note>
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Use sufficient shots" icon="repeat">
+    Use at least 1000-10000 shots for reliable statistics. More complex benchmarks may require more shots.
+  </Card>
+  <Card title="Match hardware topology" icon="sitemap">
+    For the GHZ benchmark, choose the `method` parameter that matches your hardware connectivity.
+  </Card>
+  <Card title="Start small" icon="seedling">
+    Begin with smaller qubit counts and scale up based on your hardware capabilities.
+  </Card>
+  <Card title="Validate with simulation" icon="flask">
+    Test benchmarks on simulators first to verify your workflow before using real hardware.
+  </Card>
+</CardGroup>
+
+## Interpreting results
+
+Benchmark scores range from 0 to 1:
+
+- **Score ≈ 1.0**: Excellent performance, results closely match ideal noiseless execution
+- **Score ≈ 0.5**: Moderate performance, significant noise or errors present
+- **Score ≈ 0.0**: Poor performance, results strongly deviate from ideal
+
+The exact interpretation depends on the benchmark type and hardware characteristics. Compare scores across different:
+
+- Hardware backends
+- Circuit sizes
+- Optimization strategies
+- Error mitigation techniques
+
+## Next steps
+
+<Card title="Available benchmarks" href="/benchmarking/available-benchmarks">
+  Explore detailed descriptions of all Supermarq benchmarks
+</Card>

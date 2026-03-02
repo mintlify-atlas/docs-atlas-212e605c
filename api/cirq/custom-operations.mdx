@@ -1,0 +1,419 @@
+---
+title: Custom operations
+description: API reference for custom quantum gates in Cirq Superstaq
+---
+
+Circ Superstaq provides custom gate implementations for various quantum hardware platforms.
+
+## Qubit gates
+
+Custom gates for standard qubit (dimension-2) operations.
+
+### ZZSwapGate
+
+The ZZ-SWAP gate performs a ZZ-interaction followed by a SWAP.
+
+```python
+ZZSwapGate(theta: cirq.TParamVal)
+```
+
+<ParamField path="theta" type="cirq.TParamVal">
+  The ZZ-interaction angle in radians.
+</ParamField>
+
+The unitary for a ZZ-SWAP gate parametrized by θ is:
+
+$$
+\begin{bmatrix}
+1 & 0 & 0 & 0 \\
+0 & 0 & e^{i\theta} & 0 \\
+0 & e^{i\theta} & 0 & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}
+$$
+
+For θ = 0, the ZZ-SWAP gate is just an ordinary SWAP. ZZ-SWAPs are useful for applications like QAOA or Hamiltonian simulation on linear or low-connectivity devices.
+
+### ZXPowGate
+
+The ZX-parity gate, possibly raised to a power.
+
+```python
+ZXPowGate(exponent: cirq.TParamVal = 1.0, global_shift: float = 0.0)
+```
+
+<ParamField path="exponent" type="cirq.TParamVal" default="1.0">
+  The exponent of the gate.
+</ParamField>
+
+<ParamField path="global_shift" type="float" default="0.0">
+  Global phase shift.
+</ParamField>
+
+The ZX**t gate implements:
+
+$$
+e^{-\frac{i\pi}{2} t Z \otimes X}
+$$
+
+Convenience instances:
+- `ZX`: ZXPowGate with exponent=1
+- `CR`: Cross-resonance gate (alias for ZX)
+
+### AceCR
+
+Active Cancellation Echoed Cross Resonance gate.
+
+```python
+AceCR(
+    rads: str | cirq.TParamVal = np.pi / 2,
+    sandwich_rx_rads: cirq.TParamVal = 0
+)
+```
+
+<ParamField path="rads" type="str | cirq.TParamVal" default="np.pi / 2">
+  Angle of rotation for CR gate. Can be "+-" (positive then negative) or "-+" (negative then positive).
+</ParamField>
+
+<ParamField path="sandwich_rx_rads" type="cirq.TParamVal" default="0">
+  Angle of rotation for RX gate applied to the "X side" simultaneously with the X gate on the "Z side".
+</ParamField>
+
+Convenience instances:
+- `AceCRPlusMinus`: AceCR("+-")
+- `AceCRMinusPlus`: AceCR("-+")
+
+### Barrier
+
+A temporal boundary restricting circuit compilation and pulse scheduling.
+
+```python
+Barrier(qid_shape: tuple[int, ...])
+barrier(*qubits: cirq.Qid) -> cirq.Operation
+```
+
+<ParamField path="qubits" type="cirq.Qid">
+  Qubits that the barrier will cover.
+</ParamField>
+
+Equivalent to the Qiskit Barrier gate. By definition, nothing commutes with a barrier.
+
+### ParallelGates
+
+Combines concurrent gates acting on different qubits into a single gate.
+
+```python
+ParallelGates(*component_gates: cirq.Gate)
+parallel_gates_operation(*ops: cirq.Operation) -> cirq.Operation
+```
+
+<ParamField path="component_gates" type="cirq.Gate">
+  Gates to collect into a single gate.
+</ParamField>
+
+Excludes measurements and automatically unrolls nested ParallelGates.
+
+### RGate
+
+Single-qubit rotation about an axis in the X-Y plane.
+
+```python
+RGate(theta: cirq.TParamVal, phi: cirq.TParamVal)
+```
+
+<ParamField path="theta" type="cirq.TParamVal">
+  Angle (in radians) by which to rotate.
+</ParamField>
+
+<ParamField path="phi" type="cirq.TParamVal">
+  Angle (in radians) defining the axis of rotation: cos(φ)X + sin(φ)Y.
+</ParamField>
+
+### ParallelRGate
+
+Wrapper for parallel identical RGate operations.
+
+```python
+ParallelRGate(
+    theta: cirq.TParamVal,
+    phi: cirq.TParamVal,
+    num_copies: int
+)
+```
+
+<ParamField path="theta" type="cirq.TParamVal">
+  RGate angle by which to rotate.
+</ParamField>
+
+<ParamField path="phi" type="cirq.TParamVal">
+  RGate angle defining the rotation axis.
+</ParamField>
+
+<ParamField path="num_copies" type="int">
+  Number of parallel copies.
+</ParamField>
+
+### IXGate
+
+Thin wrapper of RX(-π) for improved iToffoli circuit diagrams.
+
+```python
+IXGate()
+```
+
+Convenience instances:
+- `IX`: IXGate instance
+- `ICCX`: iToffoli gate (IX.controlled(2, [1, 1]))
+- `AQTICCX`: Open-control iToffoli (IX.controlled(2, [0, 0]))
+
+### StrippedCZGate
+
+A CZ gate variant used in CQ hardware.
+
+```python
+StrippedCZGate(rz_rads: cirq.TParamVal = 0)
+```
+
+<ParamField path="rz_rads" type="cirq.TParamVal" default="0">
+  RZ-rotation angle in radians.
+</ParamField>
+
+When rz_rads = 0, this is a regular CZ gate. Otherwise, it's corrected into a CZ gate by RZ gates.
+
+### DDPowGate
+
+The Dipole-Dipole gate for EeroQ hardware.
+
+```python
+DDPowGate(exponent: cirq.TParamVal = 1.0, global_shift: float = 0.0)
+```
+
+Convenience instance:
+- `DD`: DDPowGate with exponent=1
+
+## Qudit gates
+
+Custom gates for higher-dimensional qudits (primarily qutrits, dimension-3).
+
+### QuditSwapGate
+
+SWAP gate for qudits of arbitrary dimension.
+
+```python
+QuditSwapGate(dimension: int)
+qudit_swap_op(qudit0: cirq.Qid, qudit1: cirq.Qid) -> cirq.Operation
+```
+
+<ParamField path="dimension" type="int">
+  The qudit dimension.
+</ParamField>
+
+Convenience instance:
+- `SWAP3`: QuditSwapGate(dimension=3)
+
+### BSwapPowGate
+
+iSWAP-like qutrit entangling gate swapping the |11⟩ and |22⟩ states.
+
+```python
+BSwapPowGate(exponent: cirq.TParamVal = 1.0, global_shift: float = 0.0)
+```
+
+Convenience instances:
+- `BSWAP`: BSwapPowGate with exponent=1
+- `BSWAP_INV`: BSwapPowGate with exponent=-1
+
+### QutritCZPowGate
+
+Generalized CZ gate for pairs of equal-dimension qudits.
+
+```python
+QutritCZPowGate(exponent: cirq.TParamVal = 1.0, global_shift: float = 0.0)
+```
+
+Defined by the unitary: U = Σ(i,j) ω^ij|i⟩⟨i|⊗|j⟩⟨j|, where the sum is over i,j less than dimension d (3 for qutrits) and ω = exp(2πi/d).
+
+Convenience instances:
+- `CZ3`: QutritCZPowGate with exponent=1
+- `CZ3_INV`: QutritCZPowGate with exponent=-1
+
+### VirtualZPowGate
+
+Applies a phase rotation between successive energy levels of a qudit.
+
+```python
+VirtualZPowGate(
+    dimension: int = 2,
+    level: int = 1,
+    exponent: cirq.TParamVal = 1.0,
+    global_shift: float = 0.0
+)
+```
+
+<ParamField path="dimension" type="int" default="2">
+  The qudit dimension.
+</ParamField>
+
+<ParamField path="level" type="int" default="1">
+  Lowest energy level to apply phase to. For level=2, phase is applied to levels [2, ..., dimension-1].
+</ParamField>
+
+<ParamField path="exponent" type="cirq.TParamVal" default="1.0">
+  Gate exponent.
+</ParamField>
+
+<ParamField path="global_shift" type="float" default="0.0">
+  Global phase shift.
+</ParamField>
+
+### QutritZ0PowGate, QutritZ1PowGate, QutritZ2PowGate
+
+Phase rotations on specific energy levels of a qutrit.
+
+```python
+QutritZ0PowGate(exponent: cirq.TParamVal = 1.0, global_shift: float = 0.0)
+QutritZ1PowGate(exponent: cirq.TParamVal = 1.0, global_shift: float = 0.0)
+QutritZ2PowGate(exponent: cirq.TParamVal = 1.0, global_shift: float = 0.0)
+```
+
+Convenience instances:
+- `QutritZ0`: Phase rotation on ground state
+- `QutritZ1`: Phase rotation on first excited state
+- `QutritZ2`: Phase rotation on second excited state
+
+### QubitSubspaceGate
+
+Embeds an n-qubit gate into a subspace of higher-dimensional qudits.
+
+```python
+QubitSubspaceGate(
+    sub_gate: cirq.Gate,
+    qid_shape: Sequence[int],
+    subspaces: Sequence[tuple[int, int]] | None = None
+)
+qubit_subspace_op(
+    sub_op: cirq.Operation,
+    qid_shape: Sequence[int],
+    subspaces: Sequence[tuple[int, int]] | None = None
+) -> cirq.Operation
+```
+
+<ParamField path="sub_gate" type="cirq.Gate">
+  The qubit gate to promote to higher dimension.
+</ParamField>
+
+<ParamField path="qid_shape" type="Sequence[int]">
+  Dimension of each Qid the gate acts upon.
+</ParamField>
+
+<ParamField path="subspaces" type="Sequence[tuple[int, int]] | None">
+  Subspace (in computational basis) of each Qid to act upon. Defaults to first two levels [(0, 1)].
+</ParamField>
+
+**Examples:**
+- `QubitSubspaceGate(cirq.X, (3,))`: X gate on levels 0 and 1 of a qutrit
+- `QubitSubspaceGate(cirq.X, (3,), [(0, 2)])`: X gate on levels 0 and 2
+- `QubitSubspaceGate(cirq.CX, (3, 3))`: CX on the 0-1 subspace of two qutrits
+
+## Example usage
+
+<CodeGroup>
+
+```python ZZ-SWAP
+import cirq
+import cirq_superstaq as css
+import numpy as np
+
+q0, q1 = cirq.LineQubit.range(2)
+
+# Create a ZZ-SWAP with π/4 interaction
+zzswap = css.ZZSwapGate(np.pi / 4)
+circuit = cirq.Circuit(
+    zzswap(q0, q1),
+    cirq.measure(q0, q1, key='result')
+)
+
+print(circuit)
+```
+
+```python Barrier
+import cirq
+import cirq_superstaq as css
+
+q0, q1, q2 = cirq.LineQubit.range(3)
+
+# Add barriers to prevent optimization across boundaries
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    css.barrier(q0, q1, q2),  # Barrier prevents optimization
+    cirq.X(q2),
+    cirq.measure_each(q0, q1, q2)
+)
+
+print(circuit)
+```
+
+```python Parallel gates
+import cirq
+import cirq_superstaq as css
+
+q0, q1, q2, q3 = cirq.LineQubit.range(4)
+
+# Apply multiple gates in parallel
+parallel_gate = css.ParallelGates(
+    cirq.X,
+    cirq.Y,
+    cirq.H,
+    cirq.Z
+)
+
+circuit = cirq.Circuit(
+    parallel_gate(q0, q1, q2, q3)
+)
+
+print(circuit)
+```
+
+```python Qutrit operations
+import cirq
+import cirq_superstaq as css
+
+# Create qutrits (dimension-3 qudits)
+qutrit0 = cirq.LineQid(0, dimension=3)
+qutrit1 = cirq.LineQid(1, dimension=3)
+
+circuit = cirq.Circuit(
+    # Apply qutrit CZ
+    css.CZ3(qutrit0, qutrit1),
+    # Apply qutrit SWAP
+    css.SWAP3(qutrit0, qutrit1),
+    # Phase rotation on specific level
+    css.QutritZ1(qutrit0)
+)
+
+print(circuit)
+```
+
+```python Qubit subspace
+import cirq
+import cirq_superstaq as css
+
+# Create a qutrit
+qutrit = cirq.LineQid(0, dimension=3)
+
+# Apply X gate on levels 0-1 (default)
+x_01 = css.QubitSubspaceGate(cirq.X, (3,))
+
+# Apply X gate on levels 1-2
+x_12 = css.QubitSubspaceGate(cirq.X, (3,), [(1, 2)])
+
+circuit = cirq.Circuit(
+    x_01(qutrit),
+    x_12(qutrit)
+)
+
+print(circuit)
+```
+
+</CodeGroup>

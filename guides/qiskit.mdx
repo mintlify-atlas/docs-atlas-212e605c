@@ -1,0 +1,333 @@
+---
+title: Using Superstaq with Qiskit
+description: Complete guide to integrating Superstaq with Qiskit for quantum circuit development and execution
+---
+
+Superstaq integrates seamlessly with Qiskit, allowing you to leverage advanced compilation, optimization, and execution capabilities across multiple quantum hardware providers.
+
+## Getting started
+
+<Steps>
+  <Step title="Install qiskit-superstaq">
+    Install the package using pip:
+    
+    ```bash
+    pip install qiskit-superstaq
+    ```
+    
+    <Note>
+      Python version 3.9 or higher is required.
+    </Note>
+  </Step>
+
+  <Step title="Initialize the provider">
+    Create a SuperstaqProvider instance with your API key:
+    
+    ```python
+    import qiskit_superstaq as qss
+    
+    # Initialize provider with API key
+    provider = qss.SuperstaqProvider(api_key="YOUR_API_KEY")
+    ```
+    
+    <Tip>
+      You can also set the `SUPERSTAQ_API_KEY` environment variable to avoid hardcoding your API key.
+    </Tip>
+  </Step>
+
+  <Step title="Create and run a circuit">
+    Build a quantum circuit and execute it on a backend:
+    
+    ```python
+    import qiskit
+    
+    # Create a Bell state circuit
+    qc = qiskit.QuantumCircuit(2, 2)
+    qc.h(0)
+    qc.cx(0, 1)
+    qc.measure(0, 0)
+    qc.measure(1, 1)
+    
+    # Get a backend and run the circuit
+    backend = provider.get_backend("ibmq_fez_qpu")
+    job = backend.run(qc, shots=100, method="dry-run")
+    
+    # Get results
+    result = job.result()
+    counts = result.get_counts()
+    print(counts)
+    ```
+  </Step>
+</Steps>
+
+## Working with backends
+
+### Listing available backends
+
+You can filter backends based on various criteria:
+
+```python
+# Get all available backends
+all_backends = provider.backends()
+
+# Filter for simulators only
+simulators = provider.backends(simulator=True)
+
+# Filter for hardware that supports circuit compilation
+compile_backends = provider.backends(supports_compile=True)
+
+# Filter for accessible backends
+accessible_backends = provider.backends(accessible=True)
+```
+
+### Backend properties
+
+Access backend information and capabilities:
+
+```python
+backend = provider.get_backend("ibmq_fez_qpu")
+
+# Number of qubits
+print(f"Qubits: {backend.num_qubits}")
+
+# Coupling map
+print(f"Coupling map: {backend.coupling_map}")
+
+# Maximum circuits per submission
+print(f"Max circuits: {backend.max_circuits}")
+```
+
+## Compiling circuits
+
+### Platform-specific compilation
+
+<Tabs>
+  <Tab title="IBM Quantum">
+    Compile circuits for IBM Quantum devices with dynamical decoupling:
+    
+    ```python
+    # Compile for IBM backend with adaptive DD strategy
+    compiled = provider.ibmq_compile(
+        circuits=qc,
+        target="ibmq_fez_qpu",
+        dynamical_decoupling=True,
+        dd_strategy="adaptive"
+    )
+    
+    # Access compiled circuit
+    optimized_circuit = compiled.circuit
+    ```
+    
+    <Note>
+      Superstaq supports three DD strategies: "standard", "syncopated", and "adaptive" (default).
+    </Note>
+  </Tab>
+
+  <Tab title="AQT">
+    Compile for Advanced Quantum Testbed with custom gate definitions:
+    
+    ```python
+    import numpy as np
+    
+    # Compile with approximate synthesis
+    compiled = provider.aqt_compile(
+        circuits=qc,
+        target="aqt_keysight_qpu",
+        atol=1e-3,
+        random_seed=42
+    )
+    
+    # Compile with Equivalent Circuit Averaging (ECA)
+    compiled_eca = provider.aqt_compile(
+        circuits=qc,
+        target="aqt_keysight_qpu",
+        num_eca_circuits=5,
+        random_seed=42
+    )
+    ```
+  </Tab>
+
+  <Tab title="QSCOUT">
+    Compile for QSCOUT trapped-ion systems:
+    
+    ```python
+    # Compile with mirror swaps and custom entangling gate
+    compiled = provider.qscout_compile(
+        circuits=qc,
+        target="qscout_peregrine_qpu",
+        mirror_swaps=True,
+        base_entangling_gate="xx",
+        atol=1e-8
+    )
+    
+    # Access compiled circuit and Jaqal program
+    optimized_circuit = compiled.circuit
+    jaqal_program = compiled.jaqal_program
+    ```
+  </Tab>
+  
+  <Tab title="CQ">
+    Compile for CQ neutral atom devices:
+    
+    ```python
+    # Compile with custom grid configuration
+    compiled = provider.cq_compile(
+        circuits=qc,
+        target="cq_sqale_qpu",
+        grid_shape=(4, 4),
+        control_radius=1.0,
+        stripped_cz_rads=0.0
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Resource estimation
+
+Estimate resource requirements before execution:
+
+```python
+# Get resource estimates for a circuit
+estimates = provider.resource_estimate(
+    circuits=qc,
+    target="ibmq_fez_qpu"
+)
+
+print(f"Gate count: {estimates.total_gates}")
+print(f"Circuit depth: {estimates.circuit_depth}")
+```
+
+## Job management
+
+### Retrieving jobs
+
+```python
+# Submit a circuit
+backend = provider.get_backend("ibmq_fez_qpu")
+job = backend.run(qc, shots=1000)
+
+# Get job by ID
+job_id = job.job_id()
+retrieved_job = provider.get_job(job_id)
+
+# Check job status
+print(f"Status: {retrieved_job.status()}")
+
+# Wait for completion and get results
+result = retrieved_job.result()
+counts = result.get_counts()
+```
+
+### Multiple circuits
+
+```python
+# Submit multiple circuits
+circuits = [qc1, qc2, qc3]
+job = backend.run(circuits, shots=500)
+
+# Get results for each circuit
+for i, circuit in enumerate(circuits):
+    counts = job.result().get_counts(i)
+    print(f"Circuit {i} results: {counts}")
+```
+
+## Advanced features
+
+### SuperCheQ benchmarking
+
+Generate circuits for quantum advantage benchmarking:
+
+```python
+# Define database files
+files = [[1, 0, 1], [1, 1, 1]]
+
+# Generate SuperCheQ circuits
+circuits, fidelities = provider.supercheq(
+    files=files,
+    num_qubits=3,
+    depth=10
+)
+```
+
+### Direct Fidelity Estimation (DFE)
+
+Measure fidelity between quantum states:
+
+```python
+# Prepare two circuits for state comparison
+qc1 = qiskit.QuantumCircuit(2)
+qc1.h(0)
+qc1.cx(0, 1)
+
+qc2 = qiskit.QuantumCircuit(2)
+qc2.h(0)
+qc2.cx(0, 1)
+qc2.rz(0.1, 0)
+
+# Submit DFE protocol
+ids = provider.submit_dfe(
+    rho_1=(qc1, "ss_unconstrained_simulator"),
+    rho_2=(qc2, "ss_unconstrained_simulator"),
+    num_random_bases=50,
+    shots=1000
+)
+
+# Process results
+fidelity = provider.process_dfe(ids)
+print(f"State fidelity: {fidelity}")
+```
+
+<Warning>
+  DFE circuits should not contain final measurements, but can include mid-circuit measurements if the target supports them.
+</Warning>
+
+## Configuration options
+
+### Provider initialization
+
+Configure the provider with advanced options:
+
+```python
+provider = qss.SuperstaqProvider(
+    api_key="YOUR_API_KEY",
+    api_version="v0.3.0",
+    max_retry_seconds=3600,
+    verbose=True,
+    ibmq_token="YOUR_IBMQ_TOKEN",
+    ibmq_instance="ibm-q/open/main"
+)
+```
+
+### Execution parameters
+
+Customize job execution:
+
+```python
+job = backend.run(
+    qc,
+    shots=2000,
+    method="dry-run",  # Simulation mode
+    tag=["experiment1", "bell_state"],
+    verbatim=False  # Allow optimization
+)
+```
+
+## Best practices
+
+<Tip>
+  Use resource estimation before running expensive circuits to understand computational requirements.
+</Tip>
+
+<Tip>
+  Leverage platform-specific compilation methods (like `ibmq_compile`, `aqt_compile`) for optimized performance.
+</Tip>
+
+<Tip>
+  Use the `dry-run` method parameter during development to simulate circuits without consuming credits.
+</Tip>
+
+## Next steps
+
+- Explore [custom gates](/guides/custom-gates) for specialized operations
+- Learn about [circuit optimization](/guides/optimization) techniques
+- Implement [error mitigation](/guides/error-mitigation) strategies

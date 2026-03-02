@@ -1,0 +1,371 @@
+---
+title: Circuit compilation and optimization
+description: Learn how Superstaq compiles and optimizes quantum circuits for different hardware backends
+---
+
+Circuit compilation transforms quantum circuits into optimized forms that execute efficiently on specific hardware. Superstaq provides advanced compilation capabilities that adapt to each backend's constraints and native gate sets.
+
+## What is compilation?
+
+Compilation converts a high-level quantum circuit into an equivalent circuit that:
+
+- Uses only the **native gates** of the target backend
+- Respects the **qubit connectivity** (coupling map) of the hardware
+- Minimizes circuit **depth** and **gate count**
+- Applies hardware-specific optimizations
+
+## Basic compilation
+
+Compile circuits for a specific backend:
+
+<CodeGroup>
+```python Qiskit
+import qiskit_superstaq as qss
+from qiskit import QuantumCircuit
+
+provider = qss.SuperstaqProvider(api_key="YOUR_API_KEY")
+backend = provider.get_backend("ibmq_jakarta_qpu")
+
+# Create a circuit
+circuit = QuantumCircuit(3)
+circuit.h(0)
+circuit.cx(0, 1)
+circuit.cx(1, 2)
+
+# Compile for the backend
+compiled = backend.compile(circuit)
+
+print(f"Original depth: {circuit.depth()}")
+print(f"Compiled depth: {compiled.circuit.depth()}")
+print(f"Native gates: {compiled.circuit.count_ops()}")
+```
+
+```python Cirq
+import cirq_superstaq as css
+import cirq
+
+service = css.Service(api_key="YOUR_API_KEY")
+
+# Create a circuit
+q0, q1, q2 = cirq.LineQubit.range(3)
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.CNOT(q1, q2)
+)
+
+# Compile for a target
+compiled = service.compile(circuit, target="ibmq_jakarta_qpu")
+
+print(f"Original: {len(list(circuit.all_operations()))} operations")
+print(f"Compiled: {len(list(compiled.circuit.all_operations()))} operations")
+```
+</CodeGroup>
+
+## Compiler output
+
+The compilation process returns a `CompilerOutput` object with several attributes:
+
+```python
+compiled = backend.compile(circuit)
+
+# The optimized circuit
+optimized_circuit = compiled.circuit
+
+# Qubit mapping before compilation
+initial_mapping = compiled.initial_logical_to_physical
+print(f"Initial mapping: {initial_mapping}")
+# Output: {0: 0, 1: 1, 2: 4}
+
+# Qubit mapping after compilation
+final_mapping = compiled.final_logical_to_physical  
+print(f"Final mapping: {final_mapping}")
+# Output: {0: 0, 1: 1, 2: 4}
+```
+
+<Info>
+The qubit mappings show how logical qubits in your circuit are mapped to physical qubits on the hardware. This is crucial for understanding how compilation respects connectivity constraints.
+</Info>
+
+## Hardware-specific compilation
+
+Superstaq provides specialized compilation methods for different platforms:
+
+### IBM backends
+
+IBM compilation includes advanced dynamical decoupling strategies:
+
+```python
+compiled = backend.ibmq_compile(
+    circuit,
+    dynamical_decoupling=True,
+    dd_strategy="adaptive"  # Options: "standard", "syncopated", "adaptive"
+)
+```
+
+<AccordionGroup>
+  <Accordion title="Dynamical decoupling strategies">
+    **Standard**: Places a single DD sequence in each idle window
+    
+    **Syncopated**: Places DD pulses at fixed intervals, alternating between neighboring qubits to mitigate ZZ coupling
+    
+    **Adaptive**: Dynamically spaces DD pulses with awareness of neighboring qubits for optimal ZZ coupling mitigation
+  </Accordion>
+</AccordionGroup>
+
+The compiled output includes pulse-level schedules:
+
+```python
+# Access the pulse gate circuit (if available)
+pulse_circuit = compiled.pulse_gate_circuit
+```
+
+### AQT (Advanced Quantum Testbed)
+
+Compile for AQT's superconducting hardware:
+
+```python
+compiled = backend.aqt_compile(
+    circuit,
+    atol=1e-3,  # Approximation tolerance
+    random_seed=42
+)
+
+# Access pulse sequences (if qtrl is installed)
+if compiled.seq:
+    print(f"Pulse sequence available: {compiled.seq}")
+```
+
+#### Equivalent Circuit Averaging (ECA)
+
+Generate logically equivalent random circuits for error mitigation:
+
+```python
+compiled = backend.aqt_compile(
+    circuit,
+    num_eca_circuits=10  # Generate 10 equivalent circuits
+)
+
+# Access the equivalent circuits
+for i, eca_circuit in enumerate(compiled.circuits):
+    print(f"ECA circuit {i} depth: {eca_circuit.depth()}")
+```
+
+<Note>
+ECA improves result fidelity by averaging over multiple logically equivalent circuits that are affected by different noise patterns.
+</Note>
+
+#### Custom gate definitions
+
+Map specific calibrations to custom operations:
+
+```python
+from cirq import SQRT_ISWAP, SQRT_ISWAP_INV
+
+compiled = service.aqt_compile(
+    circuit,
+    target="aqt_keysight_qpu",
+    gate_defs={
+        "SWAP": SQRT_ISWAP,
+        "SWAP/C5C4": SQRT_ISWAP_INV  # Override for specific qubit pair
+    }
+)
+```
+
+### QSCOUT compilation
+
+Compile for trapped-ion hardware at Sandia National Labs:
+
+```python
+compiled = backend.qscout_compile(
+    circuit,
+    base_entangling_gate="xx",  # Options: "xx", "zz", "sxx", "szz"
+    mirror_swaps=True,
+    atol=1e-8
+)
+
+# Access Jaqal program
+jaqal_program = compiled.jaqal_program
+print(jaqal_program)
+```
+
+#### Error-aware compilation
+
+Optimize based on qubit error rates:
+
+```python
+compiled = service.qscout_compile(
+    circuit,
+    target="qscout_peregrine_qpu",
+    error_rates={
+        (0, 1): 0.02,  # 2% error rate on qubits 0-1
+        (1, 2): 0.01   # 1% error rate on qubits 1-2
+    },
+    atol_map={
+        (0, 1): 1e-3,  # Relaxed tolerance for noisy pair
+        (1, 2): 1e-6   # Tight tolerance for high-fidelity pair
+    }
+)
+```
+
+<Tip>
+Superstaq automatically routes the circuit to minimize total error based on the provided error rates.
+</Tip>
+
+### ColdQuanta (CQ) compilation
+
+Compile for neutral atom hardware:
+
+```python
+compiled = backend.cq_compile(
+    circuit,
+    grid_shape=(3, 3),  # Rectangular qubit grid
+    control_radius=1.0,  # Connectivity radius
+    stripped_cz_rads=0.0
+)
+```
+
+## Compilation options
+
+### Approximate synthesis
+
+Use approximate gate decomposition with controlled error:
+
+```python
+compiled = backend.aqt_compile(
+    circuit,
+    atol=1e-3  # Maximum trace distance error
+)
+```
+
+<Warning>
+Lower `atol` values produce more accurate but potentially deeper circuits. Choose based on your error budget.
+</Warning>
+
+### Custom gate sets
+
+Specify which gates to use during compilation:
+
+```python
+compiled = service.aqt_compile(
+    circuit,
+    target="aqt_keysight_qpu",
+    gateset={
+        "rz": [[0], [1], [2]],  # Single-qubit gates on qubits 0, 1, 2
+        "xx": [[0, 1], [1, 2]]  # Two-qubit gates on specific pairs
+    }
+)
+```
+
+### Preserving circuit structure
+
+Compile without optimization:
+
+```python
+# Run without compilation
+job = backend.run(circuit, shots=1000, verbatim=True)
+```
+
+## Qubit mapping
+
+Understand how logical qubits map to physical hardware:
+
+```python
+compiled = backend.compile(circuit)
+
+# Check initial layout
+initial = compiled.initial_logical_to_physical
+print(f"Logical qubit 0 → Physical qubit {initial[0]}")
+
+# Check final layout (after SWAP insertions)
+final = compiled.final_logical_to_physical
+print(f"Logical qubit 0 ends on physical qubit {final[0]}")
+```
+
+<Info>
+The compiler may insert SWAP gates to route operations between non-adjacent qubits. The final mapping shows where each logical qubit ends up.
+</Info>
+
+## Batch compilation
+
+Compile multiple circuits efficiently:
+
+```python
+circuits = [circuit1, circuit2, circuit3]
+
+# Compile all circuits
+compiled = backend.compile(circuits)
+
+# Access individual compiled circuits
+for i, circ in enumerate(compiled.circuits):
+    print(f"Circuit {i} depth: {circ.depth()}")
+    
+# Access individual mappings
+for i, mapping in enumerate(compiled.final_logical_to_physicals):
+    print(f"Circuit {i} qubit mapping: {mapping}")
+```
+
+## Resource estimation
+
+Estimate compilation costs without actually compiling:
+
+```python
+# Get resource estimates
+estimates = backend.resource_estimate(circuit)
+
+print(f"Estimated depth: {estimates.num_layers}")
+print(f"Estimated single-qubit gates: {estimates.num_single_qubit_gates}")
+print(f"Estimated two-qubit gates: {estimates.num_two_qubit_gates}")
+```
+
+<Tip>
+Use resource estimation to compare different circuit designs before committing to full compilation and execution.
+</Tip>
+
+## Pulse-level compilation
+
+For pulse-enabled backends, access the full pulse schedule:
+
+```python
+compiled = backend.ibmq_compile(circuit)
+
+if compiled.pulse_gate_circuit:
+    pulse_circuit = compiled.pulse_gate_circuit
+    
+    # Pulse circuits include timing information
+    if hasattr(pulse_circuit, '_op_start_times'):
+        print(f"Operation timings: {pulse_circuit._op_start_times}")
+```
+
+## Compilation validation
+
+Verify that compilation preserves circuit functionality:
+
+```python
+import numpy as np
+
+# Compare unitary matrices (for small circuits)
+original_unitary = circuit.to_unitary()
+compiled_unitary = compiled.circuit.to_unitary()
+
+# Check equivalence up to global phase
+fidelity = np.abs(np.trace(original_unitary.conj().T @ compiled_unitary))
+fidelity /= original_unitary.shape[0]
+
+print(f"Compilation fidelity: {fidelity:.6f}")
+```
+
+<Note>
+High compilation fidelity (close to 1.0) confirms the compiled circuit is functionally equivalent to the original.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Submit jobs" icon="play" href="/concepts/jobs">
+    Execute compiled circuits on backends
+  </Card>
+  <Card title="Quantum backends" icon="server" href="/concepts/backends">
+    Explore available hardware targets
+  </Card>
+</CardGroup>

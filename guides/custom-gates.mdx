@@ -1,0 +1,495 @@
+---
+title: Custom quantum gates and operations
+description: Guide to using specialized custom gates available in Superstaq for advanced quantum algorithms
+---
+
+Superstaq provides a collection of custom quantum gates optimized for specific hardware platforms and quantum algorithms. These gates extend the standard gate sets available in Qiskit and Cirq.
+
+## Overview
+
+Custom gates in Superstaq are designed to:
+
+- Provide native operations for specific quantum hardware
+- Enable efficient implementation of quantum algorithms
+- Support advanced error mitigation techniques
+- Facilitate cross-platform quantum computing
+
+## Qiskit custom gates
+
+### AceCR gate
+
+The Active Cancellation Echoed Cross Resonance (AceCR) gate is optimized for superconducting qubit systems:
+
+```python
+import qiskit_superstaq as qss
+import qiskit
+import numpy as np
+
+# Create AceCR gate with default parameters
+gate1 = qss.AceCR()
+
+# Create AceCR with custom rotation angle
+gate2 = qss.AceCR(rads=np.pi/4)
+
+# Create AceCR with sandwich RX gate
+gate3 = qss.AceCR(rads=np.pi/2, sandwich_rx_rads=np.pi/6)
+
+# Add to circuit
+qc = qiskit.QuantumCircuit(2)
+qc.append(gate1, [0, 1])
+qc.append(gate3, [0, 1])
+```
+
+<Note>
+  The AceCR gate uses echoed cross-resonance interactions to reduce errors in superconducting systems.
+</Note>
+
+**Key features:**
+- Supports polarity switches (`"+-"` or `"-+"`)
+- Optional sandwich RX rotation on the "X side"
+- Inverse operation available via `.inverse()` method
+
+### ZZ-SWAP gate
+
+The ZZ-SWAP gate combines ZZ-interaction with a SWAP operation, useful for QAOA and Hamiltonian simulation:
+
+```python
+import qiskit_superstaq as qss
+import numpy as np
+
+# Create ZZ-SWAP gate
+theta = np.pi / 4
+zzswap = qss.ZZSwapGate(theta)
+
+# Add to circuit
+qc = qiskit.QuantumCircuit(2)
+qc.append(zzswap, [0, 1])
+
+# Inverse operation
+zzswap_inv = zzswap.inverse()
+qc.append(zzswap_inv, [0, 1])
+```
+
+The unitary matrix for ZZ-SWAP with angle θ:
+
+```
+┌─────────────────────────────────┐
+│ 1       0           0        0  │
+│ 0       0      exp(iθ)       0  │
+│ 0  exp(iθ)         0        0  │
+│ 0       0           0        1  │
+└─────────────────────────────────┘
+```
+
+<Tip>
+  For θ = 0, the ZZ-SWAP gate reduces to a standard SWAP operation.
+</Tip>
+
+### Stripped CZ gate
+
+The Stripped CZ gate is used in neutral atom systems (CQ/Sqale):
+
+```python
+import qiskit_superstaq as qss
+
+# Create Stripped CZ gate
+rz_angle = 0.1
+stripped_cz = qss.StrippedCZGate(rz_rads=rz_angle)
+
+qc = qiskit.QuantumCircuit(2)
+qc.append(stripped_cz, [0, 1])
+```
+
+<Note>
+  When `rz_rads=0`, the Stripped CZ gate is equivalent to a standard CZ gate.
+</Note>
+
+### Parallel gates
+
+Combine multiple gates into a single parallel operation:
+
+```python
+import qiskit_superstaq as qss
+import qiskit
+
+# Create component gates
+gate1 = qiskit.circuit.library.RXGate(np.pi/4)
+gate2 = qiskit.circuit.library.RYGate(np.pi/3)
+gate3 = qiskit.circuit.library.RZGate(np.pi/2)
+
+# Combine into parallel gate
+parallel = qss.ParallelGates(gate1, gate2, gate3)
+
+# Apply to circuit (requires 3 qubits total)
+qc = qiskit.QuantumCircuit(3)
+qc.append(parallel, [0, 1, 2])
+```
+
+**Use cases:**
+- Represent concurrent gate operations explicitly
+- Optimize pulse schedules
+- Improve circuit visualization
+
+### iX gate family
+
+Pauli-X gates with global phase factors:
+
+```python
+import qiskit_superstaq as qss
+
+# iX gate (X with phase i)
+ix = qss.iXGate()
+
+# iX dagger (inverse)
+ixdg = qss.iXdgGate()
+
+# Controlled versions
+iccx = qss.iCCXGate()  # Toffoli + controlled phase
+iccxdg = qss.iCCXdgGate()
+
+# AQT-specific iCCX with "00" control state
+aqt_iccx = qss.AQTiCCXGate()
+
+qc = qiskit.QuantumCircuit(3)
+qc.append(ix, [0])
+qc.append(iccx, [0, 1, 2])
+```
+
+### DD gate (Dipole-Dipole)
+
+Part of the EeroQ native gateset:
+
+```python
+import qiskit_superstaq as qss
+
+# Create DD gate
+theta = np.pi / 6
+dd_gate = qss.DDGate(theta)
+
+qc = qiskit.QuantumCircuit(2)
+qc.append(dd_gate, [0, 1])
+```
+
+## Cirq custom gates
+
+### ZZ-SWAP gate
+
+```python
+import cirq_superstaq as css
+import cirq
+import numpy as np
+
+# Create ZZ-SWAP gate
+theta = np.pi / 3
+zzswap = css.ZZSwapGate(theta)
+
+# Add to circuit
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    zzswap(q0, q1)
+)
+
+# Power operations
+zzswap_squared = zzswap ** 2
+zzswap_half = zzswap ** 0.5
+```
+
+### ZX-Pow gate
+
+The ZX-parity gate for implementing certain algorithms:
+
+```python
+import cirq_superstaq as css
+import cirq
+
+# Create ZX power gate
+zx = css.ZXPowGate(exponent=0.5)
+
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    zx(q0, q1)
+)
+```
+
+### AceCR gates
+
+Cirq version with additional control options:
+
+```python
+import cirq_superstaq as css
+import cirq
+import numpy as np
+
+# Standard AceCR
+acecr = css.AceCR(rads=np.pi/2)
+
+# Predefined polarity versions
+acecr_pm = css.AceCRPlusMinus  # "+" polarity
+acecr_mp = css.AceCRMinusPlus  # "-" polarity
+
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    acecr(q0, q1),
+    css.CR(q0, q1)  # Controlled-rotation variant
+)
+```
+
+### Parallel gates
+
+Execute multiple gates simultaneously:
+
+```python
+import cirq_superstaq as css
+import cirq
+
+# Create parallel gate operation
+qubits = cirq.LineQubit.range(4)
+parallel_op = css.parallel_gates_operation(
+    cirq.X(qubits[0]),
+    cirq.Y(qubits[1]),
+    cirq.Z(qubits[2]),
+    cirq.H(qubits[3])
+)
+
+circuit = cirq.Circuit(parallel_op)
+```
+
+### R gate
+
+General rotation gate:
+
+```python
+import cirq_superstaq as css
+import cirq
+import numpy as np
+
+# Create R gate
+r_gate = css.RGate(rads=np.pi/4, theta=np.pi/6)
+
+# Parallel R gates
+qubits = cirq.LineQubit.range(3)
+parallel_r = css.ParallelRGate(rads=np.pi/3, theta=np.pi/4)
+
+circuit = cirq.Circuit(
+    r_gate(qubits[0]),
+    parallel_r(qubits[1], qubits[2])
+)
+```
+
+### Stripped CZ gate
+
+```python
+import cirq_superstaq as css
+import cirq
+
+# Create stripped CZ
+stripped_cz = css.StrippedCZGate(rz_rads=0.05)
+
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    stripped_cz(q0, q1)
+)
+```
+
+### Barrier operation
+
+Prevent optimization across specific points:
+
+```python
+import cirq_superstaq as css
+import cirq
+
+# Create barrier
+qubits = cirq.LineQubit.range(3)
+barrier_op = css.barrier(*qubits)
+
+circuit = cirq.Circuit(
+    cirq.H.on_each(*qubits),
+    barrier_op,  # Prevents optimization across this point
+    cirq.measure(*qubits)
+)
+```
+
+## Qudit gates (Cirq)
+
+Superstaq supports qutrit operations for systems with 3-level quantum systems:
+
+### Qutrit Z gates
+
+```python
+import cirq_superstaq as css
+import cirq
+
+# Create qutrit (dimension 3)
+qutrit = cirq.LineQid(0, dimension=3)
+
+# Qutrit Z gates for different subspaces
+z0_gate = css.QutritZ0PowGate(exponent=1.0)
+z1_gate = css.QutritZ1PowGate(exponent=1.0)
+z2_gate = css.QutritZ2PowGate(exponent=1.0)
+
+circuit = cirq.Circuit(
+    z0_gate(qutrit),
+    z1_gate(qutrit),
+    z2_gate(qutrit)
+)
+
+# Convenience constants
+circuit = cirq.Circuit(
+    css.QutritZ0(qutrit),
+    css.QutritZ1(qutrit),
+    css.QutritZ2(qutrit)
+)
+```
+
+### Qutrit CZ gate
+
+```python
+import cirq_superstaq as css
+import cirq
+
+# Create qutrits
+qutrit0 = cirq.LineQid(0, dimension=3)
+qutrit1 = cirq.LineQid(1, dimension=3)
+
+# Qutrit controlled-Z
+cz3 = css.QutritCZPowGate(exponent=1.0)
+
+circuit = cirq.Circuit(
+    cz3(qutrit0, qutrit1)
+)
+
+# Convenience constant
+circuit = cirq.Circuit(
+    css.CZ3(qutrit0, qutrit1)
+)
+```
+
+### BSWAP gate
+
+Binary swap for qutrit systems:
+
+```python
+import cirq_superstaq as css
+import cirq
+
+qutrit0 = cirq.LineQid(0, dimension=3)
+qutrit1 = cirq.LineQid(1, dimension=3)
+
+# BSWAP and its inverse
+bswap = css.BSwapPowGate(exponent=1.0)
+
+circuit = cirq.Circuit(
+    css.BSWAP(qutrit0, qutrit1),
+    css.BSWAP_INV(qutrit0, qutrit1)
+)
+```
+
+### Qudit operations
+
+General qudit gates:
+
+```python
+import cirq_superstaq as css
+import cirq
+
+# Qudit swap
+qid0 = cirq.LineQid(0, dimension=4)
+qid1 = cirq.LineQid(1, dimension=4)
+
+swap_op = css.qudit_swap_op(qid0, qid1)
+
+# Qubit subspace gate
+qubit = cirq.LineQubit(0)
+qutrit = cirq.LineQid(1, dimension=3)
+
+# Apply qubit gate to qubit subspace of qutrit
+subspace_op = css.qubit_subspace_op(
+    cirq.X,
+    qutrit,
+    subspace=(0, 1)  # Apply to |0⟩ and |1⟩ states
+)
+
+circuit = cirq.Circuit(
+    swap_op,
+    subspace_op
+)
+```
+
+## Platform-specific usage
+
+<Tabs>
+  <Tab title="IBM Quantum">
+    ```python
+    import qiskit_superstaq as qss
+    import qiskit
+    
+    provider = qss.SuperstaqProvider()
+    
+    qc = qiskit.QuantumCircuit(2)
+    qc.append(qss.AceCR(rads=np.pi/2), [0, 1])
+    
+    # Compile for IBM backend
+    compiled = provider.ibmq_compile(
+        qc,
+        target="ibmq_fez_qpu"
+    )
+    ```
+  </Tab>
+  
+  <Tab title="EeroQ">
+    ```python
+    import qiskit_superstaq as qss
+    import qiskit
+    
+    provider = qss.SuperstaqProvider()
+    
+    qc = qiskit.QuantumCircuit(2)
+    qc.append(qss.DDGate(theta=np.pi/4), [0, 1])
+    
+    backend = provider.get_backend("eeroq_qpu")
+    job = backend.run(qc, shots=1000)
+    ```
+  </Tab>
+  
+  <Tab title="CQ/Sqale">
+    ```python
+    import qiskit_superstaq as qss
+    import qiskit
+    
+    provider = qss.SuperstaqProvider()
+    
+    qc = qiskit.QuantumCircuit(2)
+    qc.append(qss.StrippedCZGate(rz_rads=0.1), [0, 1])
+    
+    compiled = provider.cq_compile(
+        qc,
+        target="cq_sqale_qpu"
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Best practices
+
+<Tip>
+  Use native gates when targeting specific hardware to minimize compilation overhead.
+</Tip>
+
+<Tip>
+  Leverage parallel gates to explicitly represent concurrent operations in your algorithm.
+</Tip>
+
+<Tip>
+  Check gate definitions using the `_define()` method to understand decompositions.
+</Tip>
+
+<Warning>
+  Custom gates may not be supported on all backends. Verify compatibility before execution.
+</Warning>
+
+## Next steps
+
+- Learn about [circuit optimization](/guides/optimization) to use custom gates effectively
+- Explore [error mitigation](/guides/error-mitigation) techniques
+- Review platform-specific guides for [Qiskit](/guides/qiskit) and [Cirq](/guides/cirq)

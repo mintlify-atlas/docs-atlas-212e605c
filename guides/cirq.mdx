@@ -1,0 +1,499 @@
+---
+title: Using Superstaq with Cirq
+description: Complete guide to integrating Superstaq with Cirq for quantum circuit development and execution
+---
+
+Superstaq provides comprehensive support for Cirq, enabling you to access multiple quantum hardware providers with advanced compilation and optimization capabilities.
+
+## Getting started
+
+<Steps>
+  <Step title="Install cirq-superstaq">
+    Install the package using pip:
+    
+    ```bash
+    pip install cirq-superstaq
+    ```
+    
+    <Note>
+      Python version 3.9 or higher is required.
+    </Note>
+  </Step>
+
+  <Step title="Initialize the service">
+    Create a Service instance with your API key:
+    
+    ```python
+    import cirq_superstaq as css
+    
+    # Initialize service with API key
+    service = css.Service(
+        api_key="YOUR_API_KEY",
+        verbose=True
+    )
+    ```
+    
+    <Tip>
+      Set the `SUPERSTAQ_API_KEY` environment variable to avoid hardcoding credentials.
+    </Tip>
+  </Step>
+
+  <Step title="Create and run a circuit">
+    Build a quantum circuit and execute it:
+    
+    ```python
+    import cirq
+    
+    # Define qubits
+    q0 = cirq.LineQubit(0)
+    q1 = cirq.LineQubit(1)
+    
+    # Create a Bell state circuit
+    circuit = cirq.Circuit(
+        cirq.H(q0),
+        cirq.CNOT(q0, q1),
+        cirq.measure(q0, q1, key='result')
+    )
+    
+    # Submit job
+    job = service.create_job(
+        circuit,
+        repetitions=100,
+        target="ibmq_fez_qpu",
+        method="dry-run"
+    )
+    
+    # Get results
+    print(job.status())
+    print(job.counts(0))
+    ```
+  </Step>
+</Steps>
+
+## Working with targets
+
+### Setting a default target
+
+Configure a default target to simplify API calls:
+
+```python
+# Initialize service with default target
+service = css.Service(
+    api_key="YOUR_API_KEY",
+    default_target="ibmq_fez_qpu"
+)
+
+# No need to specify target in calls
+job = service.create_job(circuit, repetitions=100)
+```
+
+### Listing available targets
+
+Retrieve information about available quantum devices:
+
+```python
+# Get all targets
+targets = service.get_targets()
+
+# Filter targets
+simulators = service.get_targets(simulator=True)
+accessible = service.get_targets(accessible=True)
+```
+
+## Running circuits
+
+### Using the sampler interface
+
+Cirq's sampler interface provides a familiar way to execute circuits:
+
+```python
+# Get a sampler for a specific target
+sampler = service.sampler(target="ss_unconstrained_simulator")
+
+# Run with parameter sweeps
+results = sampler.run(
+    circuit,
+    repetitions=1000,
+    params=cirq.ParamResolver({'theta': 0.5})
+)
+```
+
+### Getting counts directly
+
+```python
+# Execute and get counts
+counts = service.get_counts(
+    circuits=circuit,
+    repetitions=1000,
+    target="ibmq_fez_qpu",
+    method="dry-run"
+)
+
+print(counts)  # {'00': 520, '11': 480}
+
+# Multiple circuits
+counts_list = service.get_counts(
+    circuits=[circuit1, circuit2, circuit3],
+    repetitions=500,
+    target="ibmq_fez_qpu"
+)
+```
+
+### Getting ResultDict objects
+
+```python
+# Get Cirq ResultDict format
+result = service.run(
+    circuits=circuit,
+    repetitions=1000,
+    target="ibmq_fez_qpu"
+)
+
+# Access measurements
+print(result.measurements)
+```
+
+<Warning>
+  The `run` method may return unexpected results with measurement error mitigation. Use `create_job()` or `get_counts()` for more reliable results.
+</Warning>
+
+## Compiling circuits
+
+### Platform-specific compilation
+
+<Tabs>
+  <Tab title="IBM Quantum">
+    Compile for IBM Quantum with dynamical decoupling:
+    
+    ```python
+    # Compile with adaptive DD strategy
+    compiled = service.ibmq_compile(
+        circuits=circuit,
+        target="ibmq_fez_qpu",
+        dynamical_decoupling=True,
+        dd_strategy="adaptive"
+    )
+    
+    # Access compiled circuit
+    optimized = compiled.circuit
+    
+    # Access pulse schedule if available
+    if hasattr(compiled, 'pulse_gate_circuit'):
+        pulse_schedule = compiled.pulse_gate_circuit
+    ```
+    
+    <Note>
+      DD strategies: "standard", "syncopated", or "adaptive" (default).
+    </Note>
+  </Tab>
+
+  <Tab title="AQT">
+    Compile for Advanced Quantum Testbed:
+    
+    ```python
+    import numpy as np
+    import cirq
+    
+    # Define custom gate mappings
+    gate_defs = {
+        "SWAP": cirq.SQRT_ISWAP,
+        "SWAP/C5C4": cirq.SQRT_ISWAP_INV
+    }
+    
+    # Compile with ECA and custom gates
+    compiled = service.aqt_compile(
+        circuits=circuit,
+        target="aqt_keysight_qpu",
+        num_eca_circuits=10,
+        random_seed=42,
+        atol=1e-3,
+        gate_defs=gate_defs
+    )
+    
+    # For ECA, get list of equivalent circuits
+    equivalent_circuits = compiled.circuits
+    ```
+    
+    <Tip>
+      ECA (Equivalent Circuit Averaging) generates logically equivalent circuits to reduce coherent errors.
+    </Tip>
+  </Tab>
+
+  <Tab title="QSCOUT">
+    Compile for QSCOUT trapped-ion testbed:
+    
+    ```python
+    # Define error rates for specific qubit pairs
+    error_rates = {
+        (0, 1): 0.3,
+        (1, 2): 0.2
+    }
+    
+    # Define tolerance map
+    atol_map = {
+        (0, 1): 0.001,
+        (1, 2): 0.0005
+    }
+    
+    # Compile with custom settings
+    compiled = service.qscout_compile(
+        circuits=circuit,
+        target="qscout_peregrine_qpu",
+        mirror_swaps=True,
+        base_entangling_gate="xx",
+        num_qubits=5,
+        error_rates=error_rates,
+        atol=1e-8,
+        atol_map=atol_map
+    )
+    
+    # Access compiled circuit and Jaqal program
+    optimized_circuit = compiled.circuit
+    jaqal_program = compiled.jaqal_program
+    print(jaqal_program)
+    ```
+  </Tab>
+  
+  <Tab title="CQ">
+    Compile for CQ neutral atom systems:
+    
+    ```python
+    # Compile with grid configuration
+    compiled = service.cq_compile(
+        circuits=circuit,
+        target="cq_sqale_qpu",
+        grid_shape=(5, 5),
+        control_radius=1.0,
+        stripped_cz_rads=0.0
+    )
+    ```
+  </Tab>
+</Tabs>
+
+### Generic compilation
+
+Use the generic `compile` method for any target:
+
+```python
+# Automatically routes to appropriate compiler
+compiled = service.compile(
+    circuits=circuit,
+    target="ibmq_fez_qpu",
+    dynamical_decoupling=True
+)
+```
+
+## Resource estimation
+
+Estimate computational resources before execution:
+
+```python
+# Get resource estimate
+estimates = service.resource_estimate(
+    circuits=circuit,
+    target="ibmq_fez_qpu"
+)
+
+print(f"Total gates: {estimates.total_gates}")
+print(f"Circuit depth: {estimates.circuit_depth}")
+print(f"Two-qubit gates: {estimates.num_two_qubit_gates}")
+
+# For multiple circuits
+estimates_list = service.resource_estimate(
+    circuits=[circuit1, circuit2],
+    target="ibmq_fez_qpu"
+)
+```
+
+## Job management
+
+### Creating and tracking jobs
+
+```python
+# Create job with metadata
+job = service.create_job(
+    circuits=circuit,
+    repetitions=1000,
+    target="ibmq_fez_qpu",
+    tag=["experiment1", "bell_state"],
+    metadata={"researcher": "alice", "version": "1.0"}
+)
+
+# Get job by ID
+retrieved_job = service.get_job(job.job_id())
+
+# Monitor status
+print(job.status())
+
+# Wait for completion
+job.wait()
+results = job.counts(0)
+```
+
+### Verbatim execution
+
+Run circuits without compilation:
+
+```python
+job = service.create_job(
+    circuits=circuit,
+    repetitions=1000,
+    target="ibmq_fez_qpu",
+    verbatim=True  # Skip optimization
+)
+```
+
+## Advanced protocols
+
+### SuperCheQ benchmarking
+
+```python
+# Generate circuits for quantum advantage testing
+files = [[1, 0, 1, 0], [1, 1, 0, 1]]
+
+circuits, fidelities = service.supercheq(
+    files=files,
+    num_qubits=4,
+    depth=15
+)
+
+print(f"Generated {len(circuits)} circuits")
+print(f"Fidelity matrix shape: {fidelities.shape}")
+```
+
+### Direct Fidelity Estimation
+
+Compare quantum states across different backends:
+
+```python
+# Prepare state preparation circuits
+qubits = cirq.LineQubit.range(2)
+circuit1 = cirq.Circuit(
+    cirq.H(qubits[0]),
+    cirq.CX(qubits[0], qubits[1])
+)
+
+circuit2 = cirq.Circuit(
+    cirq.H(qubits[0]),
+    cirq.CX(qubits[0], qubits[1]),
+    cirq.RZ(0.1)(qubits[0])
+)
+
+# Submit DFE protocol
+ids = service.submit_dfe(
+    rho_1=(circuit1, "ss_unconstrained_simulator"),
+    rho_2=(circuit2, "ss_unconstrained_simulator"),
+    num_random_bases=100,
+    shots=2000
+)
+
+# Process and get fidelity
+fidelity = service.process_dfe(ids)
+print(f"State fidelity: {fidelity:.4f}")
+```
+
+### ACES characterization
+
+Characterize device performance using ACES protocol:
+
+```python
+import cirq
+
+# Submit ACES characterization
+job_id = service.submit_aces(
+    target="ibmq_fez_qpu",
+    qubits=[0, 1, 2, 3],
+    shots=1000,
+    num_circuits=50,
+    mirror_depth=5,
+    extra_depth=3,
+    method="dry-run"
+)
+
+# Process results
+results = service.process_aces(job_id)
+print(f"Gate eigenvalues: {results}")
+```
+
+### Cycle Benchmarking
+
+Characterize gate errors using cycle benchmarking:
+
+```python
+# Define process circuit
+qubits = cirq.LineQubit.range(2)
+process_circuit = cirq.Circuit(
+    cirq.H(qubits[0]),
+    cirq.CX(qubits[0], qubits[1])
+)
+
+# Submit CB protocol
+job_id = service.submit_cb(
+    repetitions=500,
+    process_circuit=process_circuit,
+    target="ibmq_fez_qpu",
+    n_channels=10,
+    n_sequences=20,
+    depths=[1, 2, 4, 8, 16],
+    method="dry-run"
+)
+
+# Process results
+cb_data = service.process_cb(job_id)
+print(f"Process infidelity: {cb_data['process_infidelity']}")
+```
+
+## Configuration options
+
+### Service initialization
+
+```python
+service = css.Service(
+    api_key="YOUR_API_KEY",
+    api_version="v0.3.0",
+    max_retry_seconds=3600,
+    verbose=True,
+    default_target="ibmq_fez_qpu",
+    ibmq_token="YOUR_IBMQ_TOKEN",
+    ibmq_instance="ibm-q/open/main",
+    cq_token="YOUR_CQ_TOKEN"
+)
+```
+
+### Execution parameters
+
+```python
+job = service.create_job(
+    circuits=circuit,
+    repetitions=2000,
+    target="ibmq_fez_qpu",
+    method="dry-run",
+    tag="experiment_1",
+    metadata={"project": "qec"},
+    verbatim=False
+)
+```
+
+## Best practices
+
+<Tip>
+  Use resource estimation to understand circuit requirements before execution.
+</Tip>
+
+<Tip>
+  Leverage `get_counts()` for simple execution and result retrieval.
+</Tip>
+
+<Tip>
+  Set a default target when working primarily with one backend.
+</Tip>
+
+<Tip>
+  Use the `dry-run` method during development to test without consuming credits.
+</Tip>
+
+## Next steps
+
+- Explore [custom gates](/guides/custom-gates) available in cirq-superstaq
+- Learn about [circuit optimization](/guides/optimization) techniques
+- Implement [error mitigation](/guides/error-mitigation) strategies

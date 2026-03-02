@@ -1,122 +1,115 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Superstaq",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#00b198",
+    "light": "#ffffff",
+    "dark": "#141a5e"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/Infleqtion/client-superstaq"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/Infleqtion/client-superstaq"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "authentication",
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/backends",
+              "concepts/jobs",
+              "concepts/compilation"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "guides/qiskit",
+              "guides/cirq",
+              "guides/custom-gates",
+              "guides/optimization",
+              "guides/error-mitigation"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Benchmarking",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "benchmarking/overview",
+              "benchmarking/running-benchmarks",
+              "benchmarking/available-benchmarks"
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": [
+              "examples/basic-circuit",
+              "examples/job-submission",
+              "examples/hardware-execution"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "General Superstaq",
             "pages": [
-              "api-reference/introduction"
+              "api/general/service",
+              "api/general/client",
+              "api/general/exceptions",
+              "api/general/models"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Qiskit Superstaq",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/qiskit/provider",
+              "api/qiskit/backend",
+              "api/qiskit/job",
+              "api/qiskit/custom-gates",
+              "api/qiskit/serialization"
+            ]
+          },
+          {
+            "group": "Cirq Superstaq",
+            "pages": [
+              "api/cirq/service",
+              "api/cirq/job",
+              "api/cirq/sampler",
+              "api/cirq/custom-operations",
+              "api/cirq/serialization"
+            ]
+          },
+          {
+            "group": "Supermarq",
+            "pages": [
+              "api/supermarq/benchmark",
+              "api/supermarq/benchmarks",
+              "api/supermarq/features"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

@@ -1,0 +1,386 @@
+---
+title: Running on real quantum hardware
+description: Execute quantum circuits on actual quantum processors through Superstaq
+---
+
+## Overview
+
+Superstaq provides unified access to multiple quantum hardware platforms including IBM, AWS, QSCOUT, AQT, and CQ Sqale. This guide shows you how to run circuits on real quantum hardware and manage execution costs.
+
+## Available hardware targets
+
+Superstaq supports quantum hardware from multiple providers:
+
+<Tabs>
+  <Tab title="IBM Quantum">
+    IBM quantum processors accessible through Superstaq:
+
+    - `ibmq_fez_qpu` - IBM Fez processor
+    - `ibmq_pittsburgh_qpu` - IBM Pittsburgh processor
+
+    <Note>
+      IBM hardware access may require additional authentication. See [IBM compilation](/optimizations/ibm) for details.
+    </Note>
+  </Tab>
+
+  <Tab title="Ion Traps">
+    Trapped-ion quantum computers:
+
+    - `qscout_peregrine_qpu` - Sandia QSCOUT Peregrine system
+    - `aqt_keysight_qpu` - Advanced Quantum Testbed at LBNL
+
+    These systems offer high-fidelity qubits with all-to-all connectivity.
+  </Tab>
+
+  <Tab title="Neutral Atoms">
+    Neutral atom quantum processors:
+
+    - `cq_sqale_qpu` - CQ Sqale quantum processor
+    - `cq_sqale_simulator` - CQ Sqale simulator
+
+    Features programmable qubit arrangements and long coherence times.
+  </Tab>
+
+  <Tab title="Cloud Simulators">
+    High-performance cloud simulators:
+
+    - `aws_sv1_simulator` - AWS SV1 state vector simulator
+    - `ss_unconstrained_simulator` - Superstaq unconstrained simulator
+
+    Free for all users with the `dry-run` method.
+  </Tab>
+</Tabs>
+
+## Listing available targets
+
+Before running on hardware, check which targets are available to your account:
+
+<CodeGroup>
+```python Qiskit - Get all targets
+import qiskit_superstaq as qss
+
+provider = qss.SuperstaqProvider()
+
+# Get all available targets
+targets = provider.get_targets()
+for target in targets:
+    print(f"{target.target}: available={target.available}, accessible={target.accessible}")
+```
+
+```python Cirq - Get all targets
+import cirq_superstaq as css
+
+service = css.Service()
+
+# Get all available targets
+targets = service.get_targets()
+for target in targets:
+    print(f"{target.target}: available={target.available}, accessible={target.accessible}")
+```
+
+```python Filter by capabilities
+# Qiskit: Get only targets that support submissions
+provider.get_targets(supports_submit=True, available=True)
+
+# Cirq: Get only accessible targets
+service.get_my_targets()
+```
+</CodeGroup>
+
+## Running on quantum hardware
+
+<Steps>
+  <Step title="Check your balance">
+    Before submitting to hardware, check your Superstaq credits:
+
+    <Tabs>
+      <Tab title="Qiskit">
+        ```python
+        # Check account balance
+        balance = provider.get_balance()
+        print(balance)
+        # Output: "You have 1000.0 credits remaining."
+
+        # Get numeric balance
+        credits = provider.get_balance(pretty_output=False)
+        print(f"Credits: {credits}")
+        ```
+      </Tab>
+
+      <Tab title="Cirq">
+        ```python
+        # Check account balance
+        balance = service.get_balance()
+        print(balance)
+        # Output: "You have 1000.0 credits remaining."
+
+        # Get numeric balance
+        credits = service.get_balance(pretty_output=False)
+        print(f"Credits: {credits}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Estimate resource costs">
+    Get an estimate of the computational resources required:
+
+    <Tabs>
+      <Tab title="Qiskit">
+        ```python
+        import qiskit
+
+        # Create a circuit
+        circuit = qiskit.QuantumCircuit(2)
+        circuit.cx(0, 1)
+        circuit.h(1)
+
+        # Get resource estimate
+        estimate = provider.resource_estimate(
+            circuit,
+            "ss_unconstrained_simulator"
+        )
+        print(estimate)
+        # Output: ResourceEstimate(num_single_qubit_gates=1, num_two_qubit_gates=1, depth=2)
+
+        # Estimate for multiple circuits
+        estimates = provider.resource_estimate(
+            [circuit, circuit],
+            "ss_unconstrained_simulator"
+        )
+        ```
+      </Tab>
+
+      <Tab title="Cirq">
+        ```python
+        import cirq
+
+        # Create a circuit
+        q0, q1 = cirq.LineQubit.range(2)
+        circuit = cirq.Circuit(
+            cirq.CNOT(q0, q1),
+            cirq.H(q0),
+            cirq.measure(q0)
+        )
+
+        # Get resource estimate
+        estimate = service.resource_estimate(
+            circuit,
+            "ss_unconstrained_simulator"
+        )
+        print(estimate)
+        # Output: ResourceEstimate(num_single_qubit_gates=1, num_two_qubit_gates=1, depth=3)
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Submit to hardware">
+    Execute your circuit on real quantum hardware:
+
+    <Tabs>
+      <Tab title="Qiskit">
+        ```python
+        # Create circuit with measurements
+        qc = qiskit.QuantumCircuit(2, 2)
+        qc.x(0)
+        qc.cx(0, 1)
+        qc.measure([0, 1], [0, 1])
+
+        # Submit to IBM hardware (without dry-run)
+        backend = provider.get_backend("ibmq_pittsburgh_qpu")
+        job = backend.run(qc, shots=1000)
+
+        # Wait for results
+        print(f"Job status: {job.status()}")
+        result = job.result().get_counts()
+        print(result)
+        ```
+      </Tab>
+
+      <Tab title="Cirq">
+        ```python
+        # Create circuit with measurements
+        q0, q1 = cirq.LineQubit.range(2)
+        circuit = cirq.Circuit(
+            cirq.X(q0),
+            cirq.CNOT(q0, q1),
+            cirq.measure(q0, q1)
+        )
+
+        # Submit to IBM hardware (without dry-run)
+        job = service.create_job(
+            circuit,
+            target="ibmq_pittsburgh_qpu",
+            repetitions=1000
+        )
+
+        # Wait for results
+        print(f"Job status: {job.status()}")
+        counts = job.counts(0)
+        print(counts)
+        ```
+      </Tab>
+    </Tabs>
+
+    <Tip>
+      Jobs may take several minutes to complete on real hardware due to queue times and execution. Use the job ID to retrieve results later.
+    </Tip>
+  </Step>
+</Steps>
+
+## Hardware-specific compilation
+
+Different hardware platforms require specific compilation:
+
+<CodeGroup>
+```python IBM - IBMQ compile
+# Qiskit
+qc = qiskit.QuantumCircuit(4)
+qc.h(0)
+qc.cx(0, 1)
+
+compiled = provider.ibmq_compile(qc, target="ibmq_pittsburgh_qpu")
+print(type(compiled.circuit))  # Optimized circuit
+print(type(compiled.pulse_gate_circuit))  # Pulse schedule
+
+# Cirq
+circuit = cirq.Circuit(cirq.H(cirq.q(0)), cirq.CX(cirq.q(0), cirq.q(1)))
+compiled = service.ibmq_compile(circuit, target="ibmq_pittsburgh_qpu")
+```
+
+```python QSCOUT - Jaqal compilation
+# Qiskit
+qc = qiskit.QuantumCircuit(2)
+qc.h(0)
+
+compiled = provider.qscout_compile(qc, target="qscout_peregrine_qpu")
+print(compiled.circuit)  # Optimized circuit
+print(compiled.jaqal_program)  # Jaqal program string
+
+# Cirq
+circuit = cirq.Circuit(cirq.H(cirq.LineQubit(0)))
+compiled = service.qscout_compile(circuit, target="qscout_peregrine_qpu")
+print(compiled.jaqal_program)  # Jaqal program string
+```
+
+```python AQT - Advanced compilation
+# Qiskit
+qc = qiskit.QuantumCircuit(8)
+qc.h(4)
+
+compiled = provider.aqt_compile(qc, target="aqt_keysight_qpu")
+print(compiled.circuit)
+
+# Cirq
+circuit = cirq.Circuit(cirq.H(cirq.LineQubit(4)))
+compiled = service.aqt_compile(circuit, target="aqt_keysight_qpu")
+```
+
+```python CQ Sqale - Native gates
+# Qiskit
+import numpy as np
+qc = qiskit.QuantumCircuit(2)
+qc.h(0)
+qc.append(qiskit.circuit.library.GR(2, np.pi/2, 0), [0, 1])
+
+backend = provider.get_backend("cq_sqale_qpu")
+compiled = backend.compile(qc)
+
+# Cirq
+from cirq_superstaq import ParallelRGate
+qubits = cirq.GridQubit.rect(2, 2)
+circuit = cirq.Circuit(
+    cirq.H(qubits[0]),
+    ParallelRGate(0.125, 0.125, 2).on(qubits[0], qubits[1])
+)
+compiled = service.cq_compile(circuit, target="cq_sqale_qpu")
+```
+</CodeGroup>
+
+## Testing with dry-run
+
+Always test your circuits with `dry-run` before submitting to hardware:
+
+<Tabs>
+  <Tab title="Qiskit">
+    ```python
+    # Test against any hardware target with dry-run
+    targets = ["qscout_peregrine_qpu", "aqt_keysight_qpu", "ibmq_pittsburgh_qpu"]
+
+    for target in targets:
+        backend = provider.get_backend(target)
+        job = backend.run(qc, shots=100, method="dry-run")
+        print(f"{target}: {job.result().get_counts()}")
+    ```
+  </Tab>
+
+  <Tab title="Cirq">
+    ```python
+    # Test against any hardware target with dry-run
+    targets = ["qscout_peregrine_qpu", "aqt_keysight_qpu", "ibmq_pittsburgh_qpu"]
+
+    for target in targets:
+        job = service.create_job(
+            circuit,
+            target=target,
+            repetitions=100,
+            method="dry-run"
+        )
+        print(f"{target}: {job.counts(0)}")
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  The `dry-run` method simulates the exact hardware you specify, including its gate set, topology, and noise characteristics, without consuming credits.
+</Note>
+
+## QUBO submissions
+
+Superstaq also supports Quadratic Unconstrained Binary Optimization (QUBO) problem submissions:
+
+<CodeGroup>
+```python Qiskit QUBO
+test_qubo = {
+    (0,): -1,
+    (1,): -1,
+    (2,): -1,
+    (0, 1): 2,
+    (1, 2): 2,
+}
+
+result = provider.submit_qubo(
+    test_qubo,
+    target="ss_unconstrained_simulator",
+    repetitions=10
+)
+print(result)
+# Output: List of 10 solutions, e.g., [{0: 1, 1: 0, 2: 1}, ...]
+```
+
+```python Cirq QUBO
+test_qubo = {
+    (0,): -1,
+    (1,): -1,
+    (2,): -1,
+    (0, 1): 2,
+    (1, 2): 2,
+}
+
+result = service.submit_qubo(
+    test_qubo,
+    target="ss_unconstrained_simulator",
+    repetitions=10
+)
+print(result)
+# Output: List of 10 solutions
+```
+</CodeGroup>
+
+## Next steps
+
+- Explore [compilation options](/api/general/client) to optimize for specific hardware
+- Learn about [IBM dynamical decoupling](/optimizations/ibm) strategies
+- Check out [QSCOUT compilation](/guides/optimization) for trapped-ion systems
+- Review [AQT compilation](/guides/optimization) for superconducting qubits

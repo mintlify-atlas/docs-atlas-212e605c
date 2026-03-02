@@ -1,28 +1,10 @@
-# Mintlify Starter Kit
+# Superstaq Documentation
 
-Use the starter kit to get your docs deployed and ready to customize.
+This repository contains the documentation for Superstaq, a quantum software platform optimized across the full quantum stack.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+## About Superstaq
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
-
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
-
-```bash
-npx skills add https://mintlify.com/docs
-```
-
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
-
-See the [AI tools guides](/ai-tools) for tool-specific setup.
+Superstaq enables you to write quantum programs in Cirq or Qiskit and target a variety of quantum computers and simulators. The platform provides advanced optimizations and multi-framework support through a unified API.
 
 ## Development
 

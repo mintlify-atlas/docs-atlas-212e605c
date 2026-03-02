@@ -1,0 +1,420 @@
+---
+title: Features
+description: Circuit feature extraction functions for quantum circuit analysis
+---
+
+## Overview
+
+The `features` module provides functions to compute various structural and complexity features of quantum circuits. These features characterize different aspects of circuit behavior and are useful for circuit analysis, optimization, and benchmarking.
+
+All feature functions return normalized values that can be used to compare circuits of different sizes and structures.
+
+## Available features
+
+<CardGroup cols={2}>
+  <Card title="Communication" icon="network-wired" href="#communication">
+    Average qubit connectivity
+  </Card>
+  <Card title="Liveness" icon="chart-line" href="#liveness">
+    Qubit utilization over time
+  </Card>
+  <Card title="Parallelism" icon="layer-group" href="#parallelism">
+    Gate execution parallelism
+  </Card>
+  <Card title="Measurement" icon="ruler" href="#measurement">
+    Mid-circuit measurement frequency
+  </Card>
+  <Card title="Entanglement" icon="link" href="#entanglement">
+    Two-qubit gate ratio
+  </Card>
+  <Card title="Depth" icon="bars-staggered" href="#depth">
+    Critical path complexity
+  </Card>
+</CardGroup>
+
+## Communication
+
+Compute the program communication of a quantum circuit.
+
+<Tabs>
+  <Tab title="Cirq">
+    ```python
+    def compute_communication(circuit: cirq.Circuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="cirq.Circuit" required>
+      A Cirq quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The communication feature value for this circuit
+    </ResponseField>
+  </Tab>
+  
+  <Tab title="Qiskit">
+    ```python
+    def compute_communication_with_qiskit(circuit: qiskit.QuantumCircuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="qiskit.QuantumCircuit" required>
+      A Qiskit quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The communication feature value for this circuit
+    </ResponseField>
+  </Tab>
+</Tabs>
+
+### Definition
+
+Program communication = circuit's average qubit degree / degree of a complete graph
+
+This feature measures the connectivity pattern of the circuit by analyzing which qubits interact via two-qubit gates.
+
+### Example
+
+```python
+import cirq
+import supermarq
+
+qubits = cirq.LineQubit.range(4)
+circuit = cirq.Circuit([
+    cirq.H(qubits[0]),
+    cirq.CNOT(qubits[0], qubits[1]),
+    cirq.CNOT(qubits[1], qubits[2]),
+])
+
+comm = supermarq.features.compute_communication(circuit)
+print(f"Communication: {comm}")
+```
+
+## Liveness
+
+Compute the liveness of a quantum circuit.
+
+<Tabs>
+  <Tab title="Cirq">
+    ```python
+    def compute_liveness(circuit: cirq.Circuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="cirq.Circuit" required>
+      A Cirq quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The liveness feature value for this circuit
+    </ResponseField>
+  </Tab>
+  
+  <Tab title="Qiskit">
+    ```python
+    def compute_liveness_with_qiskit(circuit: qiskit.QuantumCircuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="qiskit.QuantumCircuit" required>
+      A Qiskit quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The liveness feature value for this circuit
+    </ResponseField>
+  </Tab>
+</Tabs>
+
+### Definition
+
+Liveness feature = sum of all entries in the liveness matrix / (num_qubits × depth)
+
+This feature measures how actively qubits are being used throughout the circuit's execution.
+
+### Example
+
+```python
+import qiskit
+import supermarq
+
+circuit = qiskit.QuantumCircuit(3)
+circuit.h(0)
+circuit.cx(0, 1)
+circuit.cx(1, 2)
+circuit.h(2)
+
+liveness = supermarq.features.compute_liveness_with_qiskit(circuit)
+print(f"Liveness: {liveness}")
+```
+
+## Parallelism
+
+Compute the parallelism of a quantum circuit.
+
+<Tabs>
+  <Tab title="Cirq">
+    ```python
+    def compute_parallelism(circuit: cirq.Circuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="cirq.Circuit" required>
+      A Cirq quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The parallelism feature value for this circuit
+    </ResponseField>
+  </Tab>
+  
+  <Tab title="Qiskit">
+    ```python
+    def compute_parallelism_with_qiskit(circuit: qiskit.QuantumCircuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="qiskit.QuantumCircuit" required>
+      A Qiskit quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The parallelism feature value for this circuit
+    </ResponseField>
+  </Tab>
+</Tabs>
+
+### Definition
+
+Parallelism feature = max((((# of gates / depth) - 1) / (# of qubits - 1)), 0)
+
+This feature measures how many gates can be executed in parallel. Higher values indicate more parallelizable circuits.
+
+### Example
+
+```python
+import cirq
+import supermarq
+
+qubits = cirq.LineQubit.range(5)
+circuit = cirq.Circuit([
+    cirq.H.on_each(*qubits),  # All gates execute in parallel
+    cirq.CNOT(qubits[0], qubits[1]),
+])
+
+parallelism = supermarq.features.compute_parallelism(circuit)
+print(f"Parallelism: {parallelism}")
+```
+
+## Measurement
+
+Compute the measurement feature of a quantum circuit.
+
+<Tabs>
+  <Tab title="Cirq">
+    ```python
+    def compute_measurement(circuit: cirq.Circuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="cirq.Circuit" required>
+      A Cirq quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The measurement feature value for this circuit
+    </ResponseField>
+  </Tab>
+  
+  <Tab title="Qiskit">
+    ```python
+    def compute_measurement_with_qiskit(circuit: qiskit.QuantumCircuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="qiskit.QuantumCircuit" required>
+      A Qiskit quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The measurement feature value for this circuit
+    </ResponseField>
+  </Tab>
+</Tabs>
+
+### Definition
+
+Measurement feature = # of layers of mid-circuit measurement / circuit depth
+
+This feature characterizes the use of mid-circuit measurements and resets, which are important for quantum error correction and certain quantum algorithms.
+
+<Note>
+  Final measurements are excluded from this calculation. Only mid-circuit measurements contribute to the feature value.
+</Note>
+
+### Example
+
+```python
+import qiskit
+import supermarq
+
+circuit = qiskit.QuantumCircuit(2, 2)
+circuit.h(0)
+circuit.cx(0, 1)
+circuit.measure(0, 0)
+circuit.reset(0)  # Mid-circuit reset
+circuit.h(0)
+
+measurement = supermarq.features.compute_measurement_with_qiskit(circuit)
+print(f"Measurement: {measurement}")
+```
+
+## Entanglement
+
+Compute the entanglement-ratio of a quantum circuit.
+
+<Tabs>
+  <Tab title="Cirq">
+    ```python
+    def compute_entanglement(circuit: cirq.Circuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="cirq.Circuit" required>
+      A Cirq quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The entanglement feature value for this circuit
+    </ResponseField>
+  </Tab>
+  
+  <Tab title="Qiskit">
+    ```python
+    def compute_entanglement_with_qiskit(circuit: qiskit.QuantumCircuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="qiskit.QuantumCircuit" required>
+      A Qiskit quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The entanglement feature value for this circuit
+    </ResponseField>
+  </Tab>
+</Tabs>
+
+### Definition
+
+Entanglement-ratio = ratio between # of 2-qubit gates and total number of gates in the circuit
+
+This feature measures the proportion of gates that create or manipulate entanglement.
+
+### Example
+
+```python
+import cirq
+import supermarq
+
+qubits = cirq.LineQubit.range(3)
+circuit = cirq.Circuit([
+    cirq.H(qubits[0]),
+    cirq.H(qubits[1]),
+    cirq.CNOT(qubits[0], qubits[1]),  # 2-qubit gate
+    cirq.CNOT(qubits[1], qubits[2]),  # 2-qubit gate
+])
+
+entanglement = supermarq.features.compute_entanglement(circuit)
+print(f"Entanglement: {entanglement}")  # 2/4 = 0.5
+```
+
+## Depth
+
+Compute the critical depth of a quantum circuit.
+
+<Tabs>
+  <Tab title="Cirq">
+    ```python
+    def compute_depth(circuit: cirq.Circuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="cirq.Circuit" required>
+      A Cirq quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The depth feature value for this circuit
+    </ResponseField>
+  </Tab>
+  
+  <Tab title="Qiskit">
+    ```python
+    def compute_depth_with_qiskit(circuit: qiskit.QuantumCircuit) -> float
+    ```
+    
+    <ParamField path="circuit" type="qiskit.QuantumCircuit" required>
+      A Qiskit quantum circuit
+    </ParamField>
+    
+    <ResponseField name="return" type="float">
+      The depth feature value for this circuit
+    </ResponseField>
+  </Tab>
+</Tabs>
+
+### Definition
+
+Critical depth = # of 2-qubit gates along the critical path / total # of 2-qubit gates
+
+This feature measures the distribution of two-qubit gates along the circuit's critical path, which determines the minimum execution time.
+
+### Example
+
+```python
+import qiskit
+import supermarq
+
+circuit = qiskit.QuantumCircuit(3)
+circuit.h(0)
+circuit.cx(0, 1)
+circuit.cx(1, 2)
+circuit.cx(0, 2)
+
+depth = supermarq.features.compute_depth_with_qiskit(circuit)
+print(f"Depth: {depth}")
+```
+
+## Computing all features
+
+You can compute all features for a circuit to get a comprehensive characterization:
+
+```python
+import cirq
+import supermarq
+
+# Create a sample circuit
+qubits = cirq.LineQubit.range(4)
+circuit = cirq.Circuit([
+    cirq.H.on_each(*qubits),
+    cirq.CNOT(qubits[0], qubits[1]),
+    cirq.CNOT(qubits[2], qubits[3]),
+    cirq.CNOT(qubits[1], qubits[2]),
+    cirq.measure(*qubits)
+])
+
+# Compute all features
+features = {
+    'communication': supermarq.features.compute_communication(circuit),
+    'liveness': supermarq.features.compute_liveness(circuit),
+    'parallelism': supermarq.features.compute_parallelism(circuit),
+    'measurement': supermarq.features.compute_measurement(circuit),
+    'entanglement': supermarq.features.compute_entanglement(circuit),
+    'depth': supermarq.features.compute_depth(circuit),
+}
+
+for name, value in features.items():
+    print(f"{name}: {value:.3f}")
+```
+
+## Implementation notes
+
+<Info>
+  The Cirq versions of these functions are wrappers that convert the circuit to Qiskit format before computing the feature. The actual computation is performed by the `_with_qiskit` versions using Qiskit's DAG representation.
+</Info>
+
+All feature computation functions:
+- Automatically remove barrier operations before analysis
+- Return 0 for edge cases (e.g., single-qubit circuits, zero-depth circuits)
+- Are deterministic and depend only on circuit structure

@@ -1,0 +1,459 @@
+---
+title: Job classes
+description: API reference for Cirq Superstaq Job classes
+---
+
+Job classes represent quantum computing jobs submitted to Superstaq. Two versions are available depending on the API version used.
+
+## Job class
+
+Represents a job created on the Superstaq API (v0.2.0).
+
+### Constructor
+
+```python
+Job(client: _SuperstaqClient, job_id: str)
+```
+
+<ParamField path="client" type="_SuperstaqClient">
+  The client used for calling the API.
+</ParamField>
+
+<ParamField path="job_id" type="str">
+  Unique identifier for the job.
+</ParamField>
+
+<Note>
+  Users should not call this constructor directly. Use `service.get_job()` or `service.create_job()` instead.
+</Note>
+
+### Job states
+
+<Tabs>
+  <Tab title="Terminal states">
+    States from which the job cannot transition:
+    - **Done**: Job completed successfully
+    - **Canceled**: Job was canceled
+    - **Failed**: Job failed to complete
+    - **Deleted**: Job was deleted
+  </Tab>
+  <Tab title="Non-terminal states">
+    States that can transition to other states:
+    - **Ready**: Job is ready to run
+    - **Submitted**: Job has been submitted
+    - **Running**: Job is currently executing
+    - **Queued**: Job is waiting in queue
+  </Tab>
+</Tabs>
+
+### Methods
+
+#### job_id
+
+Returns the job's unique identifier.
+
+```python
+job_id() -> str
+```
+
+<ResponseField name="return" type="str">
+  The job's unique identifier.
+</ResponseField>
+
+#### status
+
+Gets the current status of the job.
+
+```python
+status(index: int | None = None) -> str
+```
+
+<ParamField path="index" type="int | None">
+  Optional index of specific sub-job to get status for.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  The status of the job (or sub-job if index is provided).
+</ResponseField>
+
+#### target
+
+Gets the Superstaq target associated with this job.
+
+```python
+target() -> str
+```
+
+<ResponseField name="return" type="str">
+  The target device name.
+</ResponseField>
+
+#### num_qubits
+
+Gets the number of qubits required for circuit(s).
+
+```python
+num_qubits(index: int | None = None) -> int | list[int]
+```
+
+<ParamField path="index" type="int | None">
+  Optional index to get number of qubits for a specific circuit.
+</ParamField>
+
+<ResponseField name="return" type="int | list[int]">
+  Number of qubits for the circuit(s).
+</ResponseField>
+
+#### repetitions
+
+Gets the number of repetitions requested for this job.
+
+```python
+repetitions() -> int
+```
+
+<ResponseField name="return" type="int">
+  Number of repetitions for this job.
+</ResponseField>
+
+#### compiled_circuits
+
+Gets compiled circuits processed for this job.
+
+```python
+compiled_circuits(index: int | None = None) -> cirq.Circuit | list[cirq.Circuit]
+```
+
+<ParamField path="index" type="int | None">
+  Optional index to retrieve a specific circuit.
+</ParamField>
+
+<ResponseField name="return" type="cirq.Circuit | list[cirq.Circuit]">
+  Compiled circuit(s).
+</ResponseField>
+
+#### input_circuits
+
+Gets original circuits submitted for this job.
+
+```python
+input_circuits(index: int | None = None) -> cirq.Circuit | list[cirq.Circuit]
+```
+
+<ParamField path="index" type="int | None">
+  Optional index to retrieve a specific circuit.
+</ParamField>
+
+<ResponseField name="return" type="cirq.Circuit | list[cirq.Circuit]">
+  Input circuit(s).
+</ResponseField>
+
+#### pulse_gate_circuits
+
+Gets pulse gate circuit(s) returned by this job.
+
+```python
+pulse_gate_circuits(index: int | None = None) -> Any
+```
+
+<ParamField path="index" type="int | None">
+  Optional index to retrieve a specific pulse gate circuit.
+</ParamField>
+
+<ResponseField name="return" type="qiskit.QuantumCircuit | list[qiskit.QuantumCircuit]">
+  Pulse gate circuit(s) (requires qiskit-superstaq).
+</ResponseField>
+
+#### counts
+
+Polls the API for measurement count results.
+
+```python
+counts(
+    index: int | None = None,
+    timeout_seconds: int = 7200,
+    polling_seconds: float = 1.0,
+    qubit_indices: Sequence[int] | None = None
+) -> dict[str, int] | list[dict[str, int]]
+```
+
+<ParamField path="index" type="int | None">
+  Optional index of the circuit to get counts for.
+</ParamField>
+
+<ParamField path="timeout_seconds" type="int" default="7200">
+  Total number of seconds to poll for results.
+</ParamField>
+
+<ParamField path="polling_seconds" type="float" default="1.0">
+  Interval between polling attempts.
+</ParamField>
+
+<ParamField path="qubit_indices" type="Sequence[int] | None">
+  If provided, only include measurements of these qubits.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, int] | list[dict[str, int]]">
+  Dictionary mapping bitstrings to measurement counts.
+</ResponseField>
+
+#### cancel
+
+Cancels the job if it is not in a terminal state.
+
+```python
+cancel(index: int | None = None, **kwargs) -> None
+```
+
+<ParamField path="index" type="int | None">
+  Optional index of specific sub-job to cancel.
+</ParamField>
+
+#### to_dict
+
+Returns job information as a dictionary.
+
+```python
+to_dict() -> dict[str, Job]
+```
+
+<ResponseField name="return" type="dict[str, Job]">
+  Dictionary containing updated job information.
+</ResponseField>
+
+<Warning>
+  The contents of this dictionary are not guaranteed to be consistent over time. Use specific Job methods instead.
+</Warning>
+
+## JobV3 class
+
+Represents a job created on the Superstaq API (v0.3.0).
+
+### Constructor
+
+```python
+JobV3(client: _SuperstaqClientV3, job_id: uuid.UUID | str)
+```
+
+<ParamField path="client" type="_SuperstaqClientV3">
+  The client used for calling the API (must be v0.3.0).
+</ParamField>
+
+<ParamField path="job_id" type="uuid.UUID | str">
+  Unique identifier for the job.
+</ParamField>
+
+<Note>
+  Users should not call this constructor directly. Use `service.get_job()` or `service.create_job()` instead.
+</Note>
+
+### Properties
+
+#### tags
+
+All tags associated with this job.
+
+```python
+tags -> list[str]
+```
+
+#### metadata
+
+Any metadata passed when creating this job.
+
+```python
+metadata -> dict[str, object]
+```
+
+### Methods
+
+#### job_id
+
+Returns the job's unique identifier.
+
+```python
+job_id() -> uuid.UUID
+```
+
+<ResponseField name="return" type="uuid.UUID">
+  The job's unique identifier as a UUID.
+</ResponseField>
+
+#### status
+
+Gets the current status of the job.
+
+```python
+status(index: int | None = None) -> CircuitStatus
+```
+
+<ParamField path="index" type="int | None">
+  Optional index of specific sub-job to get status for.
+</ParamField>
+
+<ResponseField name="return" type="CircuitStatus">
+  The status of the job (or circuit if index is provided).
+</ResponseField>
+
+#### target
+
+Gets the Superstaq target associated with this job.
+
+```python
+target() -> str
+```
+
+<ResponseField name="return" type="str">
+  The target device name.
+</ResponseField>
+
+#### num_qubits
+
+Gets the number of qubits required for circuit(s).
+
+```python
+num_qubits(index: int | None = None) -> int | list[int]
+```
+
+<ParamField path="index" type="int | None">
+  Optional index to get number of qubits for a specific circuit.
+</ParamField>
+
+<ResponseField name="return" type="int | list[int]">
+  Number of qubits for the circuit(s).
+</ResponseField>
+
+#### repetitions
+
+Gets the number of repetitions requested for this job.
+
+```python
+repetitions() -> int
+```
+
+<ResponseField name="return" type="int">
+  Number of repetitions for this job.
+</ResponseField>
+
+#### compiled_circuits
+
+Gets compiled circuits processed for this job.
+
+```python
+compiled_circuits(index: int | None = None) -> cirq.Circuit | list[cirq.Circuit]
+```
+
+<ParamField path="index" type="int | None">
+  Optional index to retrieve a specific circuit.
+</ParamField>
+
+<ResponseField name="return" type="cirq.Circuit | list[cirq.Circuit]">
+  Compiled circuit(s).
+</ResponseField>
+
+#### input_circuits
+
+Gets original circuits submitted for this job.
+
+```python
+input_circuits(index: int | None = None) -> cirq.Circuit | list[cirq.Circuit]
+```
+
+<ParamField path="index" type="int | None">
+  Optional index to retrieve a specific circuit.
+</ParamField>
+
+<ResponseField name="return" type="cirq.Circuit | list[cirq.Circuit]">
+  Input circuit(s).
+</ResponseField>
+
+#### counts
+
+Polls the API for measurement count results.
+
+```python
+counts(
+    index: int | None = None,
+    timeout_seconds: int = 7200,
+    polling_seconds: float = 1.0,
+    qubit_indices: Sequence[int] | None = None
+) -> dict[str, int] | list[dict[str, int]]
+```
+
+<ParamField path="index" type="int | None">
+  Optional index of the circuit to get counts for.
+</ParamField>
+
+<ParamField path="timeout_seconds" type="int" default="7200">
+  Total number of seconds to poll for results.
+</ParamField>
+
+<ParamField path="polling_seconds" type="float" default="1.0">
+  Interval between polling attempts.
+</ParamField>
+
+<ParamField path="qubit_indices" type="Sequence[int] | None">
+  If provided, only include measurements of these qubits.
+</ParamField>
+
+<ResponseField name="return" type="dict[str, int] | list[dict[str, int]]">
+  Dictionary mapping bitstrings to measurement counts.
+</ResponseField>
+
+#### cancel
+
+Cancels the job if it is not in a terminal state.
+
+```python
+cancel(**kwargs) -> None
+```
+
+#### to_dict
+
+Returns job information as a dictionary.
+
+```python
+to_dict() -> dict[str, Job]
+```
+
+<ResponseField name="return" type="dict[str, Job]">
+  Dictionary containing updated job information.
+</ResponseField>
+
+## Example usage
+
+```python
+import cirq
+import cirq_superstaq as css
+
+service = css.Service(api_key="YOUR_API_KEY")
+
+# Create circuit
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0, q1, key='result')
+)
+
+# Submit job
+job = service.create_job(
+    circuit,
+    repetitions=1000,
+    target="ss_unconstrained_simulator",
+    tag="my_experiment"
+)
+
+# Check status
+print(f"Job ID: {job.job_id()}")
+print(f"Status: {job.status()}")
+print(f"Target: {job.target()}")
+
+# Wait for results and get counts
+counts = job.counts(timeout_seconds=300)
+print(f"Results: {counts}")
+
+# Access circuits
+input_circuit = job.input_circuits()
+compiled_circuit = job.compiled_circuits()
+```

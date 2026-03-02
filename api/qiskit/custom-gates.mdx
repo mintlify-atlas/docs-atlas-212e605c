@@ -1,0 +1,426 @@
+---
+title: Custom gates
+---
+
+Custom quantum gates provided by Qiskit Superstaq for hardware-specific operations and optimizations.
+
+## AceCR
+
+Active Cancellation Echoed Cross Resonance gate, supporting polarity switches and sandwiches.
+
+```python
+class AceCR(qiskit.circuit.Gate)
+```
+
+The typical AceCR in the literature is a positive half-CR, then X on "Z side", then negative half-CR (where "Z side" and "X side" refer to the two sides of the underlying ZX interactions).
+
+### Constructor
+
+```python
+AceCR(
+    rads: str | float = np.pi / 2,
+    sandwich_rx_rads: float = 0,
+    label: str | None = None
+)
+```
+
+<ParamField path="rads" type="str | float">
+Angle of rotation for CR gate (i.e., twice the angle for each echoed half-CR). Can be a float value or "+-" (equivalent to π/2) or "-+" (equivalent to -π/2). Defaults to π/2.
+</ParamField>
+
+<ParamField path="sandwich_rx_rads" type="float">
+Angle of rotation for an rx gate applied to the "X side" simultaneously with the X gate on the "Z side". Defaults to 0.
+</ParamField>
+
+<ParamField path="label" type="str | None">
+An optional label for the constructed gate.
+</ParamField>
+
+### Methods
+
+#### inverse
+
+```python
+inverse() -> AceCR
+```
+
+Inverts the AceCR gate.
+
+**Returns:** The inverse AceCR gate.
+
+## ZZSwapGate
+
+The ZZ-SWAP gate, which performs the ZZ-interaction followed by a SWAP.
+
+```python
+class ZZSwapGate(qiskit.circuit.Gate)
+```
+
+ZZ-SWAPs are useful for applications like QAOA or Hamiltonian Simulation, particularly on linear- or low-connectivity devices. See https://arxiv.org/pdf/2004.14970.pdf for an application of ZZ-SWAP networks.
+
+The unitary for a ZZ-SWAP gate parametrized by ZZ-interaction angle θ is:
+
+```
+┌         ┐
+│ 1  .  .  . │
+│ .  . e^iθ . │
+│ . e^iθ . . │
+│ .  .  . 1 │
+└         ┘
+```
+
+For θ = 0, the ZZ-SWAP gate is just an ordinary SWAP.
+
+### Constructor
+
+```python
+ZZSwapGate(
+    theta: float,
+    label: str | None = None
+)
+```
+
+<ParamField path="theta" type="float">
+The ZZ-interaction angle in radians.
+</ParamField>
+
+<ParamField path="label" type="str | None">
+An optional label for the constructed gate.
+</ParamField>
+
+### Methods
+
+#### inverse
+
+```python
+inverse() -> ZZSwapGate
+```
+
+Inverts the ZZ-SWAP gate.
+
+**Returns:** The inverse ZZ-SWAP gate.
+
+## StrippedCZGate
+
+The Stripped CZ gate is a regular CZ gate when the rz angle = 0.
+
+```python
+class StrippedCZGate(qiskit.circuit.Gate)
+```
+
+It is the gate that is actually being performed by Sqale, and it is corrected into a CZ gate by RZ gates afterwards if the rz angle is nonzero.
+
+### Constructor
+
+```python
+StrippedCZGate(
+    rz_rads: float,
+    label: str | None = None
+)
+```
+
+<ParamField path="rz_rads" type="float">
+The RZ-rotation angle in radians.
+</ParamField>
+
+<ParamField path="label" type="str | None">
+An optional label for the constructed gate.
+</ParamField>
+
+### Methods
+
+#### inverse
+
+```python
+inverse() -> StrippedCZGate
+```
+
+Inverts the stripped CZ gate.
+
+**Returns:** The inverse Stripped CZ gate.
+
+## ParallelGates
+
+A single gate combining a collection of concurrent gate(s) acting on different qubits.
+
+```python
+class ParallelGates(qiskit.circuit.Gate)
+```
+
+### Constructor
+
+```python
+ParallelGates(
+    *component_gates: qiskit.circuit.Gate,
+    label: str | None = None
+)
+```
+
+<ParamField path="component_gates" type="qiskit.circuit.Gate">
+Gate(s) to be collected into a single gate.
+</ParamField>
+
+<ParamField path="label" type="str | None">
+An optional label for the constructed gate.
+</ParamField>
+
+### Methods
+
+#### inverse
+
+```python
+inverse() -> ParallelGates
+```
+
+Inverts parallel gates.
+
+**Returns:** The inverse parallel gates.
+
+## iXGate
+
+The iX gate (a single qubit Pauli-X gate with a global phase of i).
+
+```python
+class iXGate(qiskit.circuit.Gate)
+```
+
+It is a special case of when the RX gate's input rotation angle is -π:
+
+```
+┌     ┐
+│ 0 i │
+│ i 0 │
+└     ┘
+```
+
+### Constructor
+
+```python
+iXGate(label: str | None = None)
+```
+
+<ParamField path="label" type="str | None">
+An optional label for the constructed gate.
+</ParamField>
+
+### Methods
+
+#### inverse
+
+```python
+inverse() -> iXdgGate
+```
+
+Inverts iX gate.
+
+**Returns:** The inverse iX gate.
+
+#### control
+
+```python
+control(
+    num_ctrl_qubits: int = 1,
+    label: str | None = None,
+    ctrl_state: str | int | None = None,
+    annotated: bool | None = None
+) -> qiskit.circuit.ControlledGate
+```
+
+Method to return a controlled version of the gate.
+
+<ParamField path="num_ctrl_qubits" type="int">
+Number of control qubits for the gate. Defaults to 1.
+</ParamField>
+
+<ParamField path="label" type="str | None">
+An optional label for the gate.
+</ParamField>
+
+<ParamField path="ctrl_state" type="str | int | None">
+The control qubit state to use (e.g. '00').
+</ParamField>
+
+<ParamField path="annotated" type="bool | None">
+Ignored.
+</ParamField>
+
+**Returns:** The `qiskit.circuit.ControlledGate` version of the gate.
+
+## iXdgGate
+
+The conjugate transpose of the `iXGate` (iXGate† = iXdgGate).
+
+```python
+class iXdgGate(qiskit.circuit.Gate)
+```
+
+### Constructor
+
+```python
+iXdgGate(label: str | None = None)
+```
+
+<ParamField path="label" type="str | None">
+An optional label for the constructed gate.
+</ParamField>
+
+### Methods
+
+#### inverse
+
+```python
+inverse() -> iXGate
+```
+
+Inverts the `iXdgGate`.
+
+**Returns:** The inverse of the `iXdgGate`.
+
+#### control
+
+```python
+control(
+    num_ctrl_qubits: int = 1,
+    label: str | None = None,
+    ctrl_state: str | int | None = None,
+    annotated: bool | None = None
+) -> qiskit.circuit.ControlledGate
+```
+
+Method to return a controlled version of the gate.
+
+<ParamField path="num_ctrl_qubits" type="int">
+Number of control qubits for the gate. Defaults to 1.
+</ParamField>
+
+<ParamField path="label" type="str | None">
+An optional label for the gate.
+</ParamField>
+
+<ParamField path="ctrl_state" type="str | int | None">
+The control qubit state to use (e.g. '00').
+</ParamField>
+
+<ParamField path="annotated" type="bool | None">
+Ignored.
+</ParamField>
+
+**Returns:** The `qiskit.circuit.ControlledGate` version of the gate.
+
+## iCCXGate
+
+An iCCX gate which consists of a Toffoli gate and a subsequent controlled phase gate.
+
+```python
+class iCCXGate(qiskit.circuit.ControlledGate)
+```
+
+The two qubit controlled phase gate uses an angle of rotation of π/2 on the second qubit with the first qubit acting as the control.
+
+### Constructor
+
+```python
+iCCXGate(
+    label: str | None = None,
+    ctrl_state: str | int | None = None
+)
+```
+
+<ParamField path="label" type="str | None">
+An optional label for the constructed gate.
+</ParamField>
+
+<ParamField path="ctrl_state" type="str | int | None">
+The control qubit state to use (e.g. '00').
+</ParamField>
+
+## iCCXdgGate
+
+The conjugate transpose of the `iCCXGate` (iCCXGate† = iCCXdgGate).
+
+```python
+class iCCXdgGate(qiskit.circuit.ControlledGate)
+```
+
+### Constructor
+
+```python
+iCCXdgGate(
+    label: str | None = None,
+    ctrl_state: str | int | None = None
+)
+```
+
+<ParamField path="label" type="str | None">
+An optional label for the constructed gate.
+</ParamField>
+
+<ParamField path="ctrl_state" type="str | int | None">
+The control qubit state to use (e.g. '00').
+</ParamField>
+
+## AQTiCCXGate
+
+A subclass of the iCCXGate for AQT where the control state is "00".
+
+```python
+class AQTiCCXGate(iCCXGate)
+```
+
+### Constructor
+
+```python
+AQTiCCXGate(label: str | None = None)
+```
+
+<ParamField path="label" type="str | None">
+An optional label for the constructed gate.
+</ParamField>
+
+## DDGate
+
+The Dipole-Dipole (DD) gate, which performs the dipole-dipole interaction between two electrons. Part of the EeroQ native gateset.
+
+```python
+class DDGate(qiskit.circuit.Gate)
+```
+
+The unitary for a DD gate parametrized by angle θ is:
+
+```
+┌                                                      ┐
+│ e^(-iθ)       .              .              .       │
+│    .    e^(iθ)cos(θ)  ie^(iθ)sin(θ)        .       │
+│    .    ie^(iθ)sin(θ)  e^(iθ)cos(θ)        .       │
+│    .          .              .        e^(-iθ)      │
+└                                                      ┘
+```
+
+### Constructor
+
+```python
+DDGate(
+    theta: float,
+    label: str | None = None
+)
+```
+
+<ParamField path="theta" type="float">
+The DD angle in radians.
+</ParamField>
+
+<ParamField path="label" type="str | None">
+An optional label for the constructed gate.
+</ParamField>
+
+### Methods
+
+#### inverse
+
+```python
+inverse() -> DDGate
+```
+
+Inverts the DD gate.
+
+**Returns:** The inverse DD gate.

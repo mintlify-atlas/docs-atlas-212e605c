@@ -1,0 +1,233 @@
+---
+title: Circuit serialization
+description: API reference for Cirq circuit serialization in Superstaq
+---
+
+Circuit serialization functions for converting Cirq circuits to and from JSON format for API communication.
+
+## Functions
+
+### serialize_circuits
+
+Serializes Cirq circuit(s) into a JSON string.
+
+```python
+serialize_circuits(
+    circuits: cirq.AbstractCircuit | Sequence[cirq.AbstractCircuit]
+) -> str
+```
+
+<ParamField path="circuits" type="cirq.AbstractCircuit | Sequence[cirq.AbstractCircuit]">
+  A single Cirq circuit or list of circuits to serialize.
+</ParamField>
+
+<ResponseField name="return" type="str">
+  JSON string representing the serialized circuit(s).
+</ResponseField>
+
+### deserialize_circuits
+
+Deserializes circuit(s) from a JSON string.
+
+```python
+deserialize_circuits(serialized_circuits: str) -> list[cirq.Circuit]
+```
+
+<ParamField path="serialized_circuits" type="str">
+  JSON string generated via `serialize_circuits()`.
+</ParamField>
+
+<ResponseField name="return" type="list[cirq.Circuit]">
+  List of deserialized Cirq circuits.
+</ResponseField>
+
+<Note>
+  Uses custom resolvers to handle Superstaq-specific gates including qubit gates and qudit gates.
+</Note>
+
+### deserialize_qiskit_circuits
+
+Deserializes Qiskit QuantumCircuit objects if possible.
+
+```python
+deserialize_qiskit_circuits(
+    serialized_qiskit_circuits: str,
+    circuits_is_list: bool,
+    pulse_start_times: Sequence[Sequence[int]] | None = None
+) -> list[object] | None
+```
+
+<ParamField path="serialized_qiskit_circuits" type="str">
+  Qiskit circuits serialized via qiskit-superstaq's `serialize_circuits()`.
+</ParamField>
+
+<ParamField path="circuits_is_list" type="bool">
+  Whether to use plural "circuits" or singular "circuit" in warning messages.
+</ParamField>
+
+<ParamField path="pulse_start_times" type="Sequence[Sequence[int]] | None">
+  List of lists containing start times of every operation in each circuit.
+</ParamField>
+
+<ResponseField name="return" type="list[object] | None">
+  List of deserialized qiskit.QuantumCircuit objects, or None if deserialization failed.
+</ResponseField>
+
+<Warning>
+  Requires qiskit-superstaq to be installed. Issues a warning if the package is not available or if deserialization fails.
+</Warning>
+
+## Custom resolvers
+
+The serialization module uses custom JSON resolvers to handle Superstaq-specific gates:
+
+**SUPERSTAQ_RESOLVERS** includes:
+- `cirq_superstaq.ops.qudit_gates.custom_resolver` - For qutrit and higher-dimensional gates
+- `cirq_superstaq.ops.qubit_gates.custom_resolver` - For custom qubit gates
+
+These resolvers enable proper serialization and deserialization of gates like:
+- ZZSwapGate, ZXPowGate, AceCR
+- Barrier, ParallelGates, RGate
+- QuditSwapGate, BSwapPowGate, QutritCZPowGate
+- VirtualZPowGate, QubitSubspaceGate
+- And more
+
+## Example usage
+
+<CodeGroup>
+
+```python Basic serialization
+import cirq
+import cirq_superstaq as css
+
+# Create a circuit
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0, q1, key='result')
+)
+
+# Serialize
+serialized = css.serialization.serialize_circuits(circuit)
+print(f"Serialized: {serialized[:100]}...")
+
+# Deserialize
+deserialized = css.serialization.deserialize_circuits(serialized)
+print(f"Deserialized: {deserialized[0]}")
+
+# Verify equivalence
+assert deserialized[0] == circuit
+```
+
+```python Multiple circuits
+import cirq
+import cirq_superstaq as css
+
+q = cirq.LineQubit(0)
+
+# Create multiple circuits
+circuits = [
+    cirq.Circuit(cirq.X(q), cirq.measure(q, key='m')),
+    cirq.Circuit(cirq.Y(q), cirq.measure(q, key='m')),
+    cirq.Circuit(cirq.Z(q), cirq.measure(q, key='m'))
+]
+
+# Serialize all circuits
+serialized = css.serialization.serialize_circuits(circuits)
+
+# Deserialize back
+deserialized_circuits = css.serialization.deserialize_circuits(serialized)
+
+print(f"Original: {len(circuits)} circuits")
+print(f"Deserialized: {len(deserialized_circuits)} circuits")
+```
+
+```python Custom gates
+import cirq
+import cirq_superstaq as css
+import numpy as np
+
+q0, q1 = cirq.LineQubit.range(2)
+
+# Create circuit with custom Superstaq gates
+circuit = cirq.Circuit(
+    css.ZZSwapGate(np.pi / 4)(q0, q1),
+    css.barrier(q0, q1),
+    css.AceCR()(q0, q1),
+    cirq.measure(q0, q1, key='result')
+)
+
+# Serialize (custom gates are handled automatically)
+serialized = css.serialization.serialize_circuits(circuit)
+
+# Deserialize (custom resolvers restore gates correctly)
+deserialized = css.serialization.deserialize_circuits(serialized)
+
+print("Original circuit:")
+print(circuit)
+print("\nDeserialized circuit:")
+print(deserialized[0])
+```
+
+```python Qutrit circuits
+import cirq
+import cirq_superstaq as css
+
+# Create qutrits
+qutrit0 = cirq.LineQid(0, dimension=3)
+qutrit1 = cirq.LineQid(1, dimension=3)
+
+# Create qutrit circuit
+circuit = cirq.Circuit(
+    css.CZ3(qutrit0, qutrit1),
+    css.SWAP3(qutrit0, qutrit1),
+    css.QutritZ1(qutrit0)
+)
+
+# Serialize and deserialize
+serialized = css.serialization.serialize_circuits(circuit)
+deserialized = css.serialization.deserialize_circuits(serialized)
+
+print("Qutrit circuit preserved:")
+print(deserialized[0])
+```
+
+```python Integration with Service
+import cirq
+import cirq_superstaq as css
+
+service = css.Service(api_key="YOUR_API_KEY")
+
+q0, q1 = cirq.LineQubit.range(2)
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0, q1, key='result')
+)
+
+# Serialization happens automatically when creating jobs
+job = service.create_job(
+    circuit,
+    repetitions=1000,
+    target="ss_unconstrained_simulator"
+)
+
+# Deserialization happens automatically when retrieving circuits
+input_circuit = job.input_circuits()
+compiled_circuit = job.compiled_circuits()
+
+print("Input circuit (deserialized from API):")
+print(input_circuit)
+```
+
+</CodeGroup>
+
+## Notes
+
+- Serialization uses Cirq's built-in `cirq.to_json()` function
+- Deserialization uses `cirq.read_json()` with custom resolvers for Superstaq gates
+- The serialization format is compatible with Superstaq's API requirements
+- Qiskit circuit deserialization requires the qiskit-superstaq package
+- If stimcirq is installed, its JSON resolver is also included for compatibility
+- All Superstaq custom gates are automatically handled by the custom resolvers

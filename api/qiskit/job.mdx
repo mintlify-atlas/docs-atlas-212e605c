@@ -1,0 +1,332 @@
+---
+title: SuperstaqJob
+---
+
+Job classes for managing and retrieving results from Superstaq job submissions.
+
+## SuperstaqJob
+
+This class represents a Superstaq job instance.
+
+```python
+class SuperstaqJob(qiskit.providers.JobV1)
+```
+
+### Constructor
+
+```python
+SuperstaqJob(
+    backend: SuperstaqBackend,
+    job_id: str
+)
+```
+
+<ParamField path="backend" type="SuperstaqBackend">
+The `SuperstaqBackend` that the job was created with.
+</ParamField>
+
+<ParamField path="job_id" type="str">
+The unique job ID string from Superstaq.
+</ParamField>
+
+### Class attributes
+
+```python
+TERMINAL_STATES = ("Done", "Cancelled", "Failed")
+PROCESSING_STATES = ("Queued", "Submitted", "Running")
+ALL_STATES = TERMINAL_STATES + PROCESSING_STATES
+```
+
+### Methods
+
+#### result
+
+```python
+result(
+    index: int | None = None,
+    timeout: float | None = None,
+    wait: float = 5,
+    qubit_indices: Sequence[int] | None = None
+) -> qiskit.result.Result
+```
+
+Retrieves the result data associated with a Superstaq job.
+
+<ParamField path="index" type="int | None">
+An optional index to retrieve a specific result from a result list.
+</ParamField>
+
+<ParamField path="timeout" type="float | None">
+An optional parameter that fixes when result retrieval times out. Units are in seconds.
+</ParamField>
+
+<ParamField path="wait" type="float">
+An optional parameter that sets the interval to check for Superstaq job results. Units are in seconds. Defaults to 5.
+</ParamField>
+
+<ParamField path="qubit_indices" type="Sequence[int] | None">
+The qubit indices to return the results of individually.
+</ParamField>
+
+**Returns:** A qiskit result object containing job information.
+
+#### status
+
+```python
+status(index: int | None = None) -> qiskit.providers.jobstatus.JobStatus
+```
+
+Query for the equivalent qiskit job status.
+
+<ParamField path="index" type="int | None">
+An optional index to retreive a specific job status.
+</ParamField>
+
+**Returns:** The equivalent `qiskit.providers.jobstatus.JobStatus` type.
+
+#### cancel
+
+```python
+cancel(index: int | None = None, **kwargs: object) -> None
+```
+
+Cancel the current job if it is not in a terminal state.
+
+<ParamField path="index" type="int | None">
+An optional index of the specific sub-job to cancel.
+</ParamField>
+
+<ParamField path="kwargs" type="object">
+Extra options needed to fetch jobs.
+</ParamField>
+
+#### compiled_circuits
+
+```python
+compiled_circuits(
+    index: int | None = None
+) -> qiskit.QuantumCircuit | list[qiskit.QuantumCircuit]
+```
+
+Gets the compiled circuits that were processed for this job.
+
+<ParamField path="index" type="int | None">
+An optional index of the specific circuit to retrieve.
+</ParamField>
+
+**Returns:** A single compiled circuit or list of compiled circuits.
+
+#### input_circuits
+
+```python
+input_circuits(
+    index: int | None = None
+) -> qiskit.QuantumCircuit | list[qiskit.QuantumCircuit]
+```
+
+Gets the original circuits that were submitted for this job.
+
+<ParamField path="index" type="int | None">
+An optional index of the specific circuit to retrieve.
+</ParamField>
+
+**Returns:** The input circuit or list of submitted input circuits.
+
+#### pulse_gate_circuits
+
+```python
+pulse_gate_circuits(
+    index: int | None = None
+) -> qiskit.QuantumCircuit | list[qiskit.QuantumCircuit]
+```
+
+Gets the pulse gate circuit(s) returned by this job.
+
+<ParamField path="index" type="int | None">
+An optional index of the pulse gate circuit to retrieve.
+</ParamField>
+
+**Returns:** A single pulse gate circuit or list of pulse gate circuits.
+
+#### to_dict
+
+```python
+to_dict() -> dict[str, gss.typing.Job]
+```
+
+Refreshes and returns job information.
+
+**Note:** The contents of this dictionary are not guaranteed to be consistent over time. Whenever possible, users should use the specific `SuperstaqJob` methods to retrieve the desired job information instead of relying on particular entries in the output of this method.
+
+**Returns:** A dictionary containing updated job information.
+
+## SuperstaqJobV3
+
+This class represents a Superstaq job instance for API v0.3.0.
+
+```python
+class SuperstaqJobV3(qiskit.providers.JobV1)
+```
+
+### Constructor
+
+```python
+SuperstaqJobV3(
+    backend: SuperstaqBackend,
+    job_id: uuid.UUID | str
+)
+```
+
+<ParamField path="backend" type="SuperstaqBackend">
+The `SuperstaqBackend` that the job was created with.
+</ParamField>
+
+<ParamField path="job_id" type="uuid.UUID | str">
+The unique job ID from Superstaq.
+</ParamField>
+
+### Properties
+
+#### job_info
+
+```python
+@property
+job_info -> gss.models.JobData
+```
+
+Returns the job data for this job.
+
+#### tags
+
+```python
+@property
+tags -> list[str]
+```
+
+All tags associated with this job.
+
+#### metadata
+
+```python
+@property
+metadata -> dict[str, object]
+```
+
+Any metadata passed when creating this job.
+
+### Methods
+
+#### job_id
+
+```python
+job_id() -> uuid.UUID
+```
+
+Returns the job's unique id.
+
+**Returns:** The UUID of this job.
+
+#### result
+
+```python
+result(
+    index: int | None = None,
+    timeout: float | None = None,
+    wait: float = 5,
+    qubit_indices: Sequence[int] | None = None
+) -> qiskit.result.Result
+```
+
+Retrieves the result data associated with a Superstaq job.
+
+<ParamField path="index" type="int | None">
+An optional index to retrieve a specific result from a result list.
+</ParamField>
+
+<ParamField path="timeout" type="float | None">
+An optional parameter that fixes when result retrieval times out. Units are in seconds.
+</ParamField>
+
+<ParamField path="wait" type="float">
+An optional parameter that sets the interval to check for Superstaq job results. Units are in seconds. Defaults to 5.
+</ParamField>
+
+<ParamField path="qubit_indices" type="Sequence[int] | None">
+The qubit indices to return the results of individually.
+</ParamField>
+
+**Returns:** A qiskit result object containing job information.
+
+#### status
+
+```python
+status(index: int | None = None) -> qiskit.providers.jobstatus.JobStatus
+```
+
+Query for the equivalent qiskit job status.
+
+<ParamField path="index" type="int | None">
+An optional index to retreive a specific job status.
+</ParamField>
+
+**Returns:** The equivalent `qiskit.providers.jobstatus.JobStatus` type.
+
+#### cancel
+
+```python
+cancel(index: int | None = None, **kwargs: object) -> None
+```
+
+Cancel the current job if it is not in a terminal state.
+
+<ParamField path="index" type="int | None">
+An optional index of the specific sub-job to cancel.
+</ParamField>
+
+<ParamField path="kwargs" type="object">
+Extra options needed to fetch jobs.
+</ParamField>
+
+#### compiled_circuits
+
+```python
+compiled_circuits(
+    index: int | None = None
+) -> qiskit.QuantumCircuit | list[qiskit.QuantumCircuit]
+```
+
+Gets the compiled circuits that were processed for this job.
+
+<ParamField path="index" type="int | None">
+An optional index of the specific circuit to retrieve.
+</ParamField>
+
+**Returns:** A single compiled circuit or list of compiled circuits.
+
+#### input_circuits
+
+```python
+input_circuits(
+    index: int | None = None
+) -> qiskit.QuantumCircuit | list[qiskit.QuantumCircuit]
+```
+
+Gets the original circuits that were submitted for this job.
+
+<ParamField path="index" type="int | None">
+An optional index of the specific circuit to retrieve.
+</ParamField>
+
+**Returns:** The input circuit or list of submitted input circuits.
+
+#### to_dict
+
+```python
+to_dict() -> dict[str, Any]
+```
+
+Refreshes and returns job information.
+
+**Note:** The contents of this dictionary are not guaranteed to be consistent over time. Whenever possible, users should use the specific `SuperstaqJobV3` methods to retrieve the desired job information instead of relying on particular entries in the output of this method.
+
+**Returns:** A dictionary containing updated job information.

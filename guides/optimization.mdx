@@ -1,0 +1,521 @@
+---
+title: Circuit optimization techniques
+description: Comprehensive guide to circuit optimization and compilation strategies in Superstaq
+---
+
+Superstaq provides advanced circuit optimization techniques that improve circuit performance, reduce gate counts, and minimize errors across different quantum hardware platforms.
+
+## Overview
+
+Circuit optimization in Superstaq includes:
+
+- Platform-specific compilation and gate decomposition
+- Gate count reduction and circuit depth minimization
+- Topology-aware qubit mapping
+- Approximate synthesis with controllable error bounds
+- Dynamical decoupling for coherent error mitigation
+
+## Compilation strategies
+
+### IBM Quantum optimization
+
+Superstaq offers specialized optimizations for IBM Quantum superconducting devices:
+
+<Tabs>
+  <Tab title="Qiskit">
+    ```python
+    import qiskit_superstaq as qss
+    import qiskit
+    
+    provider = qss.SuperstaqProvider()
+    
+    # Create example circuit
+    qc = qiskit.QuantumCircuit(3)
+    qc.h(0)
+    qc.cx(0, 1)
+    qc.cx(1, 2)
+    qc.t(0)
+    qc.t(1)
+    qc.t(2)
+    
+    # Compile with dynamical decoupling
+    compiled = provider.ibmq_compile(
+        circuits=qc,
+        target="ibmq_fez_qpu",
+        dynamical_decoupling=True,
+        dd_strategy="adaptive"
+    )
+    
+    optimized = compiled.circuit
+    print(f"Original depth: {qc.depth()}")
+    print(f"Optimized depth: {optimized.depth()}")
+    ```
+  </Tab>
+  
+  <Tab title="Cirq">
+    ```python
+    import cirq_superstaq as css
+    import cirq
+    
+    service = css.Service()
+    
+    # Create example circuit
+    qubits = cirq.LineQubit.range(3)
+    circuit = cirq.Circuit(
+        cirq.H(qubits[0]),
+        cirq.CNOT(qubits[0], qubits[1]),
+        cirq.CNOT(qubits[1], qubits[2]),
+        cirq.T.on_each(*qubits)
+    )
+    
+    # Compile with dynamical decoupling
+    compiled = service.ibmq_compile(
+        circuits=circuit,
+        target="ibmq_fez_qpu",
+        dynamical_decoupling=True,
+        dd_strategy="adaptive"
+    )
+    
+    optimized = compiled.circuit
+    print(f"Original operations: {len(circuit)}")
+    print(f"Optimized operations: {len(optimized)}")
+    ```
+  </Tab>
+</Tabs>
+
+**Dynamical decoupling strategies:**
+
+- **Standard**: Places a single DD sequence in each idle window
+- **Syncopated**: Fixed time intervals with alternating pulses to mitigate ZZ coupling
+- **Adaptive** (default): Dynamically spaces DD pulses with neighbor awareness
+
+<Note>
+  Adaptive DD strategy provides the best balance between error mitigation and pulse overhead.
+</Note>
+
+### AQT optimization
+
+Advanced Quantum Testbed compilation with pulse-level optimization:
+
+<CodeGroup>
+```python Qiskit
+import qiskit_superstaq as qss
+import numpy as np
+
+provider = qss.SuperstaqProvider()
+
+qc = qiskit.QuantumCircuit(4)
+qc.h(0)
+for i in range(3):
+    qc.cx(i, i+1)
+
+# Basic compilation
+compiled = provider.aqt_compile(
+    circuits=qc,
+    target="aqt_keysight_qpu",
+    atol=1e-3,
+    random_seed=42
+)
+
+# Custom gate definitions
+gate_defs = {
+    "SWAP": np.array([[0, 1], [1, 0]]),
+    "SWAP/C5C4": None  # Disable specific calibration
+}
+
+compiled = provider.aqt_compile(
+    circuits=qc,
+    target="aqt_keysight_qpu",
+    gate_defs=gate_defs,
+    atol=1e-3
+)
+```
+
+```python Cirq
+import cirq_superstaq as css
+import cirq
+import numpy as np
+
+service = css.Service()
+
+qubits = cirq.LineQubit.range(4)
+circuit = cirq.Circuit(
+    cirq.H(qubits[0]),
+    *[cirq.CNOT(qubits[i], qubits[i+1]) for i in range(3)]
+)
+
+# Custom gate definitions with Cirq gates
+gate_defs = {
+    "SWAP": cirq.SQRT_ISWAP,
+    "SWAP/C5C4": cirq.SQRT_ISWAP_INV
+}
+
+compiled = service.aqt_compile(
+    circuits=circuit,
+    target="aqt_keysight_qpu",
+    gate_defs=gate_defs,
+    atol=1e-3,
+    random_seed=42
+)
+```
+</CodeGroup>
+
+<Tip>
+  Use custom gate definitions to override default calibrations for specific qubit pairs.
+</Tip>
+
+### QSCOUT optimization
+
+Optimization for trapped-ion systems with flexible entangling gates:
+
+```python
+import qiskit_superstaq as qss
+
+provider = qss.SuperstaqProvider()
+
+qc = qiskit.QuantumCircuit(5)
+qc.h(0)
+for i in range(4):
+    qc.cx(i, i+1)
+
+# Define error rates for qubit connectivity
+error_rates = {
+    (0, 1): 0.3,
+    (1, 2): 0.2,
+    (2, 3): 0.25,
+    (3, 4): 0.35
+}
+
+# Define tolerance map for approximate compilation
+atol_map = {
+    (0, 1): 1e-3,
+    (1, 2): 1e-4
+}
+
+compiled = provider.qscout_compile(
+    circuits=qc,
+    target="qscout_peregrine_qpu",
+    mirror_swaps=True,
+    base_entangling_gate="xx",
+    error_rates=error_rates,
+    atol=1e-8,
+    atol_map=atol_map
+)
+
+print(compiled.circuit)
+print(compiled.jaqal_program)  # View Jaqal representation
+```
+
+**Entangling gate options:**
+- `"xx"`, `"zz"`: Arbitrary parameterized two-qubit interactions
+- `"sxx"`, `"szz"`: Fixed maximally-entangling rotations only
+
+<Note>
+  Mirror swaps can significantly reduce two-qubit gate overhead in linear connectivity.
+</Note>
+
+### CQ/Sqale optimization
+
+Neutral atom system compilation:
+
+```python
+import qiskit_superstaq as qss
+
+provider = qss.SuperstaqProvider()
+
+qc = qiskit.QuantumCircuit(6)
+qc.h(range(6))
+for i in range(0, 6, 2):
+    qc.cx(i, i+1)
+
+compiled = provider.cq_compile(
+    circuits=qc,
+    target="cq_sqale_qpu",
+    grid_shape=(3, 2),  # 3x2 grid
+    control_radius=1.0,  # Nearest neighbor connectivity
+    stripped_cz_rads=0.0
+)
+```
+
+## Approximate synthesis
+
+Reduce circuit complexity with controlled error bounds:
+
+<Tabs>
+  <Tab title="Qiskit">
+    ```python
+    import qiskit_superstaq as qss
+    import qiskit
+    import numpy as np
+    
+    provider = qss.SuperstaqProvider()
+    
+    # Circuit with small rotation angles
+    qc = qiskit.QuantumCircuit(2)
+    qc.rz(0.001, 0)  # Very small angle
+    qc.rx(0.002, 1)
+    qc.cx(0, 1)
+    qc.rz(0.0005, 0)
+    
+    # Compile with tolerance
+    compiled = provider.aqt_compile(
+        circuits=qc,
+        target="aqt_keysight_qpu",
+        atol=1e-3  # Allow approximation error
+    )
+    
+    # Small angles may be eliminated
+    print(f"Original gates: {qc.count_ops()}")
+    print(f"Optimized gates: {compiled.circuit.count_ops()}")
+    ```
+  </Tab>
+  
+  <Tab title="Cirq">
+    ```python
+    import cirq_superstaq as css
+    import cirq
+    import numpy as np
+    
+    service = css.Service()
+    
+    qubits = cirq.LineQubit.range(2)
+    circuit = cirq.Circuit(
+        cirq.rz(0.001)(qubits[0]),
+        cirq.rx(0.002)(qubits[1]),
+        cirq.CNOT(qubits[0], qubits[1]),
+        cirq.rz(0.0005)(qubits[0])
+    )
+    
+    # Per-qubit tolerance map
+    atol_map = {
+        (0,): 1e-3,
+        (1,): 1e-4,
+        (0, 1): 1e-3
+    }
+    
+    compiled = service.qscout_compile(
+        circuits=circuit,
+        target="qscout_peregrine_qpu",
+        atol=1e-3,
+        atol_map=atol_map
+    )
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  Approximate synthesis trades accuracy for circuit simplification. Choose `atol` based on your application requirements.
+</Warning>
+
+## Equivalent Circuit Averaging (ECA)
+
+Generate logically equivalent circuits to reduce coherent errors:
+
+```python
+import qiskit_superstaq as qss
+import qiskit
+
+provider = qss.SuperstaqProvider()
+
+qc = qiskit.QuantumCircuit(3)
+qc.h(0)
+qc.cx(0, 1)
+qc.cx(1, 2)
+
+# Generate 10 equivalent circuits
+compiled = provider.aqt_compile(
+    circuits=qc,
+    target="aqt_keysight_qpu",
+    num_eca_circuits=10,
+    random_seed=42
+)
+
+# Access equivalent circuits
+equivalent_circuits = compiled.circuits
+print(f"Generated {len(equivalent_circuits)} equivalent circuits")
+
+# Run all circuits and average results
+for i, circuit in enumerate(equivalent_circuits):
+    print(f"Circuit {i} depth: {circuit.depth()}")
+```
+
+<Note>
+  ECA is particularly effective for mitigating systematic errors in calibrated gates.
+</Note>
+
+## Topology-aware mapping
+
+Superstaq automatically maps logical qubits to physical qubits based on connectivity and error rates:
+
+```python
+import qiskit_superstaq as qss
+import qiskit
+
+provider = qss.SuperstaqProvider()
+
+# Circuit with all-to-all connectivity
+qc = qiskit.QuantumCircuit(5)
+for i in range(5):
+    for j in range(i+1, 5):
+        qc.cx(i, j)
+
+# Define error rates for available connections
+error_rates = {
+    (0, 1): 0.01,
+    (1, 2): 0.02,
+    (2, 3): 0.015,
+    (3, 4): 0.018,
+    (0, 2): 0.03,
+    (1, 3): 0.025
+}
+
+compiled = provider.qscout_compile(
+    circuits=qc,
+    target="qscout_peregrine_qpu",
+    error_rates=error_rates
+)
+
+print("Qubit mapping optimized for minimal error")
+```
+
+## Gate set optimization
+
+Specify custom gate sets for compilation:
+
+```python
+import qiskit_superstaq as qss
+
+provider = qss.SuperstaqProvider()
+
+qc = qiskit.QuantumCircuit(4)
+qc.h(0)
+qc.cx(0, 1)
+qc.cx(2, 3)
+
+# Define available gates and their qubit connectivity
+gateset = {
+    "rx": [[0], [1], [2], [3]],
+    "ry": [[0], [1], [2], [3]],
+    "rz": [[0], [1], [2], [3]],
+    "cz": [[0, 1], [1, 2], [2, 3]]
+}
+
+compiled = provider.aqt_compile(
+    circuits=qc,
+    target="aqt_keysight_qpu",
+    gateset=gateset
+)
+```
+
+## Resource estimation
+
+Estimate optimized circuit resources before execution:
+
+<CodeGroup>
+```python Qiskit
+import qiskit_superstaq as qss
+import qiskit
+
+provider = qss.SuperstaqProvider()
+
+qc = qiskit.QuantumCircuit(10)
+for i in range(9):
+    qc.h(i)
+    qc.cx(i, i+1)
+
+# Get resource estimates after compilation
+estimates = provider.resource_estimate(
+    circuits=qc,
+    target="ibmq_fez_qpu"
+)
+
+print(f"Total gates: {estimates.total_gates}")
+print(f"Two-qubit gates: {estimates.num_two_qubit_gates}")
+print(f"Circuit depth: {estimates.circuit_depth}")
+print(f"Estimated runtime: {estimates.runtime}")
+```
+
+```python Cirq
+import cirq_superstaq as css
+import cirq
+
+service = css.Service()
+
+qubits = cirq.LineQubit.range(10)
+circuit = cirq.Circuit(
+    *[cirq.H(qubits[i]) for i in range(9)],
+    *[cirq.CNOT(qubits[i], qubits[i+1]) for i in range(9)]
+)
+
+estimates = service.resource_estimate(
+    circuits=circuit,
+    target="ibmq_fez_qpu"
+)
+
+print(f"Total gates: {estimates.total_gates}")
+print(f"Circuit depth: {estimates.circuit_depth}")
+```
+</CodeGroup>
+
+## Optimization comparison
+
+Compare optimization strategies:
+
+```python
+import qiskit_superstaq as qss
+import qiskit
+
+provider = qss.SuperstaqProvider()
+
+# Create test circuit
+qc = qiskit.QuantumCircuit(5)
+qc.h(0)
+for i in range(4):
+    qc.cx(i, i+1)
+for i in range(5):
+    qc.rz(0.1, i)
+
+# Compare different strategies
+strategies = [
+    {"dynamical_decoupling": False},
+    {"dynamical_decoupling": True, "dd_strategy": "standard"},
+    {"dynamical_decoupling": True, "dd_strategy": "adaptive"}
+]
+
+for i, options in enumerate(strategies):
+    compiled = provider.ibmq_compile(
+        circuits=qc,
+        target="ibmq_fez_qpu",
+        **options
+    )
+    print(f"Strategy {i}: depth={compiled.circuit.depth()}, "
+          f"gates={sum(compiled.circuit.count_ops().values())}")
+```
+
+## Best practices
+
+<Tip>
+  Use platform-specific compilation methods for best performance on each backend.
+</Tip>
+
+<Tip>
+  Set appropriate error tolerances (`atol`) based on your algorithm's sensitivity.
+</Tip>
+
+<Tip>
+  Leverage ECA for coherent error mitigation in algorithms sensitive to systematic errors.
+</Tip>
+
+<Tip>
+  Provide error rate information when available to enable optimal qubit mapping.
+</Tip>
+
+<Warning>
+  Aggressive optimization with high `atol` values may impact algorithm correctness. Always validate results.
+</Warning>
+
+## Next steps
+
+- Explore [error mitigation](/guides/error-mitigation) techniques
+- Learn about [custom gates](/guides/custom-gates) for platform-specific operations
+- Review the [Qiskit](/guides/qiskit) and [Cirq](/guides/cirq) integration guides

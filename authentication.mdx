@@ -1,0 +1,275 @@
+---
+title: Authentication
+description: Set up your Superstaq API credentials
+---
+
+To use Superstaq, you need an API token to authenticate your requests. This guide shows you how to obtain and configure your API credentials.
+
+## Get your API token
+
+<Steps>
+  <Step title="Sign up for Superstaq">
+    Visit [superstaq.infleqtion.com](https://superstaq.infleqtion.com) and create an account or sign in to your existing account.
+  </Step>
+
+  <Step title="Navigate to your dashboard">
+    Once logged in, go to your dashboard to access your API credentials.
+  </Step>
+
+  <Step title="Copy your API token">
+    Locate your API token in the dashboard and copy it. This token is unique to your account and should be kept secure.
+    
+    <Warning>
+      Never share your API token publicly or commit it to version control systems like Git.
+    </Warning>
+  </Step>
+</Steps>
+
+## Configure authentication
+
+There are several ways to configure your API token depending on your framework and preferences.
+
+<Tabs>
+  <Tab title="Qiskit">
+
+### Direct initialization
+
+The simplest approach is to pass your token directly when creating the provider:
+
+```python
+import qiskit_superstaq as qss
+
+token = "your_superstaq_token_here"
+superstaq = qss.SuperstaqProvider(token)
+```
+
+### Using environment variables
+
+For better security, store your token in an environment variable:
+
+```bash
+export SUPERSTAQ_API_KEY="your_superstaq_token_here"
+```
+
+Then in your Python code:
+
+```python
+import os
+import qiskit_superstaq as qss
+
+token = os.environ.get("SUPERSTAQ_API_KEY")
+superstaq = qss.SuperstaqProvider(token)
+```
+
+### Using a configuration file
+
+Create a `.env` file in your project directory:
+
+```bash
+SUPERSTAQ_API_KEY=your_superstaq_token_here
+```
+
+Then load it using python-dotenv:
+
+```python
+from dotenv import load_dotenv
+import os
+import qiskit_superstaq as qss
+
+load_dotenv()
+token = os.environ.get("SUPERSTAQ_API_KEY")
+superstaq = qss.SuperstaqProvider(token)
+```
+
+<Tip>
+  Add `.env` to your `.gitignore` file to prevent accidentally committing your credentials.
+</Tip>
+
+  </Tab>
+  <Tab title="Cirq">
+
+### Direct initialization
+
+The simplest approach is to pass your API key directly when creating the service:
+
+```python
+import cirq_superstaq as css
+
+service = css.Service(
+    api_key="your_superstaq_token_here",
+    verbose=True
+)
+```
+
+### Using environment variables
+
+For better security, store your token in an environment variable:
+
+```bash
+export SUPERSTAQ_API_KEY="your_superstaq_token_here"
+```
+
+Then in your Python code:
+
+```python
+import os
+import cirq_superstaq as css
+
+api_key = os.environ.get("SUPERSTAQ_API_KEY")
+service = css.Service(api_key=api_key, verbose=True)
+```
+
+### Using a configuration file
+
+Create a `.env` file in your project directory:
+
+```bash
+SUPERSTAQ_API_KEY=your_superstaq_token_here
+```
+
+Then load it using python-dotenv:
+
+```python
+from dotenv import load_dotenv
+import os
+import cirq_superstaq as css
+
+load_dotenv()
+api_key = os.environ.get("SUPERSTAQ_API_KEY")
+service = css.Service(api_key=api_key, verbose=True)
+```
+
+<Tip>
+  Add `.env` to your `.gitignore` file to prevent accidentally committing your credentials.
+</Tip>
+
+  </Tab>
+  <Tab title="General">
+
+### Direct initialization
+
+When using the general-superstaq package:
+
+```python
+import general_superstaq as gss
+
+service = gss.Service(api_key="your_superstaq_token_here")
+```
+
+### Using environment variables
+
+For better security, store your token in an environment variable:
+
+```bash
+export SUPERSTAQ_API_KEY="your_superstaq_token_here"
+```
+
+Then in your Python code:
+
+```python
+import os
+import general_superstaq as gss
+
+api_key = os.environ.get("SUPERSTAQ_API_KEY")
+service = gss.Service(api_key=api_key)
+```
+
+  </Tab>
+</Tabs>
+
+## Verify authentication
+
+After configuring your API token, verify that authentication works correctly:
+
+<CodeGroup>
+
+```python Qiskit
+import qiskit_superstaq as qss
+
+# Initialize provider
+superstaq = qss.SuperstaqProvider(token)
+
+# List available backends to verify authentication
+backends = superstaq.backends()
+print(f"Successfully authenticated. Available backends: {len(backends)}")
+```
+
+```python Cirq
+import cirq_superstaq as css
+
+# Initialize service
+service = css.Service(api_key=api_key, verbose=True)
+
+# Get targets to verify authentication
+targets = service.get_targets()
+print(f"Successfully authenticated. Available targets: {targets}")
+```
+
+</CodeGroup>
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Use environment variables" icon="lock">
+    Store API tokens in environment variables instead of hardcoding them in your source code.
+  </Card>
+  <Card title="Keep tokens private" icon="eye-slash">
+    Never commit tokens to version control. Add `.env` files to `.gitignore`.
+  </Card>
+  <Card title="Rotate tokens regularly" icon="rotate">
+    Periodically generate new API tokens and update your applications.
+  </Card>
+  <Card title="Limit token scope" icon="shield-halved">
+    Use different tokens for different projects or environments when possible.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Invalid token error
+
+If you receive an authentication error, verify that:
+
+- Your token is copied correctly without extra spaces
+- The token hasn't expired or been revoked
+- You're using the correct token for your account
+
+### Connection issues
+
+If you can't connect to the Superstaq API:
+
+- Check your internet connection
+- Verify that you can access [superstaq.infleqtion.com](https://superstaq.infleqtion.com)
+- Ensure your firewall isn't blocking the connection
+
+<Note>
+  If you continue to experience issues, contact support at [superstaq@infleqtion.com](mailto:superstaq@infleqtion.com) or join our [Slack workspace](https://join.slack.com/t/superstaq/shared_invite/zt-1wr6eok5j-fMwB7dPEWGG~5S474xGhxw) for help.
+</Note>
+
+## API endpoints
+
+Superstaq uses the following API endpoints:
+
+- **Production API**: Used by default for all API calls
+- **API Version**: Current version information is available in the `general_superstaq` package
+
+You generally don't need to configure these manually, as the client libraries handle endpoint management automatically.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Submit your first quantum circuit
+  </Card>
+  <Card
+    title="API reference"
+    icon="code"
+    href="/api/general/service"
+  >
+    Explore the complete API documentation
+  </Card>
+</CardGroup>
