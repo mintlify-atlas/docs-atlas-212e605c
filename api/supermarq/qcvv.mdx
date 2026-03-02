@@ -1,0 +1,859 @@
+---
+title: QCVV toolkit
+description: Quantum Characterization, Verification, and Validation experiments
+---
+
+The QCVV (Quantum Characterization, Verification, and Validation) toolkit provides experiments for benchmarking and characterizing quantum devices.
+
+## Base classes
+
+### QCVVExperiment
+
+Base class for all QCVV benchmarking experiments.
+
+```python
+class QCVVExperiment(qubits, num_circuits, cycle_depths, *, random_seed=None, results_cls, _samples=None, **kwargs)
+```
+
+<ParamField path="qubits" type="int | Sequence[cirq.Qid]" required>
+  The qubits used during the experiment. If an integer, this number of line qubits will be used.
+</ParamField>
+
+<ParamField path="num_circuits" type="int" required>
+  The number of circuits to sample.
+</ParamField>
+
+<ParamField path="cycle_depths" type="Iterable[int]" required>
+  A sequence of depths to sample.
+</ParamField>
+
+<ParamField path="random_seed" type="int | np.random.Generator | None">
+  An optional seed to use for randomization.
+</ParamField>
+
+<ParamField path="results_cls" type="type[ResultsT]" required>
+  The results class to use for the experiment.
+</ParamField>
+
+<ParamField path="_samples" type="Sequence[Sample] | None">
+  Optional list of samples to construct the experiment from.
+</ParamField>
+
+<ParamField path="**kwargs" type="Any">
+  Additional kwargs passed to the Superstaq service object.
+</ParamField>
+
+#### Properties
+
+<ResponseField name="qubits" type="tuple[cirq.Qid, ...]">
+  The qubits used in the experiment.
+</ResponseField>
+
+<ResponseField name="num_circuits" type="int">
+  The number of circuits to build for each cycle depth.
+</ResponseField>
+
+<ResponseField name="cycle_depths" type="list[int]">
+  The different cycle depths to test at.
+</ResponseField>
+
+<ResponseField name="num_qubits" type="int">
+  The number of qubits used in the experiment.
+</ResponseField>
+
+<ResponseField name="circuits" type="list[cirq.Circuit]">
+  All circuits in this experiment, as a list.
+</ResponseField>
+
+<ResponseField name="samples" type="Sequence[Sample]">
+  The sample circuits for the experiment.
+</ResponseField>
+
+#### Methods
+
+##### run_on_device
+
+Submit the circuit samples to a Superstaq target device.
+
+```python
+run_on_device(target, repetitions=10_000, method=None, **target_options)
+```
+
+<ParamField path="target" type="str" required>
+  The name of a Superstaq target.
+</ParamField>
+
+<ParamField path="repetitions" type="int" default={10000}>
+  The number of shots to sample.
+</ParamField>
+
+<ParamField path="method" type="str | None">
+  Optional method to use on the Superstaq device.
+</ParamField>
+
+<ParamField path="**target_options" type="Any">
+  Optional configuration dictionary passed when submitting the job.
+</ParamField>
+
+Returns the experiment results object.
+
+##### run_with_simulator
+
+Use a local simulator to sample the circuits.
+
+```python
+run_with_simulator(simulator=None, repetitions=10_000)
+```
+
+<ParamField path="simulator" type="cirq.Sampler | None">
+  A local `cirq.Sampler` to use. If None then the default `cirq.Simulator` is used.
+</ParamField>
+
+<ParamField path="repetitions" type="int" default={10000}>
+  The number of shots to sample.
+</ParamField>
+
+Returns the experiment results object.
+
+##### run_with_callable
+
+Evaluates the probabilities for each circuit using a user-provided callable function.
+
+```python
+run_with_callable(circuit_eval_func, **kwargs)
+```
+
+<ParamField path="circuit_eval_func" type="Callable[[cirq.Circuit], Mapping[str, float] | Mapping[int, float]]" required>
+  The custom function to use when evaluating circuit probabilities. Takes a circuit as input and returns a dictionary of probabilities for each bitstring.
+</ParamField>
+
+<ParamField path="**kwargs" type="Any">
+  Additional arguments to pass to the custom function.
+</ParamField>
+
+Returns the experiment results object.
+
+##### results_from_records
+
+Creates a results object from records of the counts/probabilities for each sample circuit.
+
+```python
+results_from_records(records)
+```
+
+<ParamField path="records" type="SupportsItems[uuid.UUID | int, Mapping[str, float] | Mapping[int, float]]" required>
+  A dictionary of the counts/probabilities for each sample, keyed by either the sample UUID or the index of the sample in the experiment.
+</ParamField>
+
+Returns the experiment results object.
+
+##### to_file
+
+Save the experiment to a JSON file.
+
+```python
+to_file(filename)
+```
+
+<ParamField path="filename" type="str | pathlib.Path" required>
+  Filename to save to.
+</ParamField>
+
+##### from_file
+
+Load the experiment from a JSON file.
+
+```python
+@classmethod
+from_file(filename)
+```
+
+<ParamField path="filename" type="str | pathlib.Path" required>
+  Filename to load from.
+</ParamField>
+
+Returns the loaded experiment.
+
+---
+
+### QCVVResults
+
+Base class for storing the data and analyzed results of QCVV experiments.
+
+```python
+@dataclass
+class QCVVResults
+```
+
+#### Properties
+
+<ResponseField name="target" type="str">
+  The target device that was used.
+</ResponseField>
+
+<ResponseField name="experiment" type="QCVVExperiment[QCVVResults]">
+  Reference to the underlying experiment that generated these results.
+</ResponseField>
+
+<ResponseField name="job" type="css.Job | css.JobV3 | None">
+  The associated Superstaq job (if applicable).
+</ResponseField>
+
+<ResponseField name="data" type="pd.DataFrame | None">
+  The raw data generated.
+</ResponseField>
+
+<ResponseField name="data_ready" type="bool">
+  Whether the experimental data is ready to analyze.
+</ResponseField>
+
+<ResponseField name="samples" type="Sequence[Sample]">
+  The number of samples used.
+</ResponseField>
+
+<ResponseField name="num_qubits" type="int">
+  The number of qubits in the experiment.
+</ResponseField>
+
+<ResponseField name="num_circuits" type="int">
+  The number of circuits in the experiment.
+</ResponseField>
+
+<ResponseField name="qubits" type="tuple[cirq.Qid, ...]">
+  The qubits used in the experiment.
+</ResponseField>
+
+#### Methods
+
+##### analyze
+
+Perform the experiment analysis and store the results.
+
+```python
+analyze(plot_results=True, print_results=True, plot_filename=None)
+```
+
+<ParamField path="plot_results" type="bool" default={true}>
+  Whether to generate plots of the results.
+</ParamField>
+
+<ParamField path="print_results" type="bool" default={true}>
+  Whether to print the final results.
+</ParamField>
+
+<ParamField path="plot_filename" type="str | None">
+  Optional argument providing a filename to save the plots to. Ignored if `plot_results=False`.
+</ParamField>
+
+##### plot_results
+
+Plot the results of the experiment.
+
+```python
+plot_results(filename=None)
+```
+
+<ParamField path="filename" type="str | None">
+  Optional argument providing a filename to save the plots to.
+</ParamField>
+
+Returns a matplotlib figure containing the relevant plots of the results data.
+
+##### print_results
+
+Prints the key results data to the console.
+
+```python
+print_results()
+```
+
+---
+
+### Sample
+
+A sample circuit to use along with any data about the circuit needed for analysis.
+
+```python
+@dataclass
+class Sample
+```
+
+<ParamField path="circuit_realization" type="int" required>
+  Indicates which realization of the random circuit this sample is. There will be D samples with matching circuit realization value, one for each cycle depth being measured.
+</ParamField>
+
+<ParamField path="circuit" type="cirq.Circuit" required>
+  The raw (pre-compiled) sample circuit.
+</ParamField>
+
+<ParamField path="data" type="dict[str, Any]" required>
+  The corresponding data about the circuit that is needed when analyzing results (e.g. cycle depth).
+</ParamField>
+
+<ParamField path="uuid" type="uuid.UUID">
+  The unique ID of the sample. Automatically generated if not provided.
+</ParamField>
+
+---
+
+## Experiment classes
+
+### IRB
+
+Interleaved randomized benchmarking (IRB) experiment.
+
+IRB estimates the gate error of a specified Clifford gate by generating random sequences of Clifford gates with and without the target gate interleaved between them.
+
+```python
+class IRB(num_circuits, cycle_depths, interleaved_gate=cirq.Z, qubits=1, clifford_op_gateset=cirq.CZTargetGateset(), *, random_seed=None, _samples=None, **kwargs)
+```
+
+<ParamField path="num_circuits" type="int" required>
+  Number of circuits to sample.
+</ParamField>
+
+<ParamField path="cycle_depths" type="Iterable[int]" required>
+  The cycle depths to sample.
+</ParamField>
+
+<ParamField path="interleaved_gate" type="cirq.Gate | None" default="cirq.Z">
+  The Clifford gate to measure the gate error of. If None then no interleaving is performed and vanilla randomized benchmarking is performed instead.
+</ParamField>
+
+<ParamField path="qubits" type="int | Sequence[cirq.Qid]" default={1}>
+  The qubit(s) to experiment on. If an integer, must either be 1 or 2; otherwise must be a sequence of 1 or 2 qubit(s). Ignored if a gate is provided.
+</ParamField>
+
+<ParamField path="clifford_op_gateset" type="cirq.CompilationTargetGateset" default="cirq.CZTargetGateset()">
+  The gateset to use when implementing the clifford operations.
+</ParamField>
+
+<ParamField path="random_seed" type="int | np.random.Generator | None">
+  An optional seed to use for randomization.
+</ParamField>
+
+<ParamField path="_samples" type="list[Sample] | None">
+  Optional list of samples to construct the experiment from.
+</ParamField>
+
+<ParamField path="**kwargs" type="str">
+  Any other supported string keyword args.
+</ParamField>
+
+#### Properties
+
+<ResponseField name="interleaved_gate" type="cirq.Gate | None">
+  The Clifford gate being measured (if applicable).
+</ResponseField>
+
+<ResponseField name="clifford_op_gateset" type="cirq.CompilationTargetGateset">
+  The gateset to use when implementing Clifford operations.
+</ResponseField>
+
+#### Methods
+
+##### random_single_qubit_clifford
+
+Choose a random single qubit Clifford gate.
+
+```python
+random_single_qubit_clifford()
+```
+
+Returns a random `cirq.SingleQubitCliffordGate`.
+
+##### random_two_qubit_clifford
+
+Choose a random two qubit Clifford gate.
+
+```python
+random_two_qubit_clifford()
+```
+
+Returns a random `cirq.CliffordGate`.
+
+##### random_clifford
+
+Returns a random Clifford gate with the correct number of qubits for the current experiment.
+
+```python
+random_clifford()
+```
+
+Returns a random `cirq.CliffordGate`.
+
+##### gates_per_clifford
+
+Samples random Clifford operations and calculates the average number of single and two qubit gates used to implement them.
+
+```python
+gates_per_clifford(samples=500)
+```
+
+<ParamField path="samples" type="int" default={500}>
+  Number of samples to use.
+</ParamField>
+
+Returns a dictionary with the average number of one and two qubit gates used.
+
+#### Usage example
+
+<Tabs>
+  <Tab title="With simulator">
+    ```python
+    import cirq
+    from supermarq.qcvv import IRB
+
+    # Create an IRB experiment to measure Z gate error
+    experiment = IRB(
+        num_circuits=10,
+        cycle_depths=[1, 3, 5, 10],
+        interleaved_gate=cirq.Z
+    )
+
+    # Run with a noisy simulator
+    noise_model = cirq.depolarize(p=0.01, n_qubits=1)
+    sim = cirq.DensityMatrixSimulator(noise=noise_model)
+    results = experiment.run_with_simulator(simulator=sim, repetitions=10000)
+
+    # Analyze the results
+    results.analyze()
+    ```
+  </Tab>
+  <Tab title="With device">
+    ```python
+    from supermarq.qcvv import IRB
+
+    # Create an IRB experiment for CZ gate
+    experiment = IRB(
+        num_circuits=20,
+        cycle_depths=[1, 5, 10, 20],
+        interleaved_gate=cirq.CZ
+    )
+
+    # Run on a device
+    results = experiment.run_on_device(
+        target="ss_unconstrained_simulator",
+        repetitions=10000
+    )
+
+    # Wait for data and analyze
+    if results.data_ready:
+        results.analyze(plot_results=True, print_results=True)
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### SSB
+
+Symmetric Stabilizer Benchmarking (SSB) experiment.
+
+A benchmarking algorithm for determining the CZ fidelity of a device. Specifically designed for neutral atom devices where CZ gates mediated by Rydberg interactions are the native entangling gate.
+
+Reference: https://arxiv.org/abs/2407.20184
+
+```python
+class SSB(num_circuits, cycle_depths, *, random_seed=None, _samples=None, **kwargs)
+```
+
+<ParamField path="num_circuits" type="int" required>
+  Number of circuits to sample.
+</ParamField>
+
+<ParamField path="cycle_depths" type="Iterable[int]" required>
+  The cycle depths to sample. Must all be 2 or greater.
+</ParamField>
+
+<ParamField path="random_seed" type="int | np.random.Generator | None">
+  An optional seed to use for randomization.
+</ParamField>
+
+<ParamField path="_samples" type="list[Sample] | None">
+  Optional list of samples to construct the experiment from.
+</ParamField>
+
+<ParamField path="**kwargs" type="str">
+  Additional kwargs passed to the base QCVVExperiment.
+</ParamField>
+
+<Note>
+  SSB always operates on exactly 2 qubits.
+</Note>
+
+#### Usage example
+
+```python
+import cirq
+from supermarq.qcvv import SSB
+
+# Create an SSB experiment
+experiment = SSB(
+    num_circuits=15,
+    cycle_depths=[2, 5, 10, 20]
+)
+
+# Run with a noisy simulator
+noise = cirq.ConstantQubitNoiseModel(cirq.depolarize(0.005))
+sim = cirq.DensityMatrixSimulator(noise=noise)
+results = experiment.run_with_simulator(simulator=sim, repetitions=10000)
+
+# Analyze and view results
+results.analyze(plot_results=True)
+print(f"CZ fidelity: {results.cz_fidelity_estimate:.5f}")
+```
+
+---
+
+### SU2
+
+SU(2) benchmarking experiment.
+
+SU2 benchmarking extracts the fidelity of a given two qubit gate, even in the presence of additional single qubit errors. The method works by sampling circuits with random SU(2) rotations and a fixed two-qubit gate pattern.
+
+Reference: https://www.nature.com/articles/s41586-023-06481-y#Fig3
+
+```python
+class SU2(num_circuits, cycle_depths, two_qubit_gate=cirq.CZ, *, random_seed=None, _samples=None, **kwargs)
+```
+
+<ParamField path="num_circuits" type="int" required>
+  Number of circuits to sample.
+</ParamField>
+
+<ParamField path="cycle_depths" type="Iterable[int]" required>
+  The cycle depths to sample.
+</ParamField>
+
+<ParamField path="two_qubit_gate" type="cirq.Gate" default="cirq.CZ">
+  The two-qubit gate to measure the gate error of. Must act on exactly two qubits.
+</ParamField>
+
+<ParamField path="random_seed" type="int | np.random.Generator | None">
+  An optional seed to use for randomization.
+</ParamField>
+
+<ParamField path="_samples" type="list[Sample] | None">
+  Optional list of samples to construct the experiment from.
+</ParamField>
+
+<ParamField path="**kwargs" type="str">
+  Any additional supported string keyword args.
+</ParamField>
+
+#### Properties
+
+<ResponseField name="two_qubit_gate" type="cirq.Gate">
+  The two qubit gate to be benchmarked.
+</ResponseField>
+
+#### Usage example
+
+```python
+import cirq
+from supermarq.qcvv import SU2
+
+# Create an SU2 experiment for CNOT gate
+experiment = SU2(
+    num_circuits=20,
+    cycle_depths=[1, 2, 3, 4],
+    two_qubit_gate=cirq.CNOT
+)
+
+# Run with simulator
+sim = cirq.DensityMatrixSimulator(
+    noise=cirq.ConstantQubitNoiseModel(cirq.depolarize(0.01))
+)
+results = experiment.run_with_simulator(simulator=sim, repetitions=10000)
+
+# Analyze results
+results.analyze()
+print(f"Two-qubit gate fidelity: {results.two_qubit_gate_fidelity:.5f}")
+print(f"Single-qubit noise: {results.single_qubit_noise:.5f}")
+```
+
+---
+
+### XEB
+
+Cross-entropy benchmarking (XEB) experiment.
+
+The XEB experiment estimates the combined fidelity of a repeating cycle of gates by comparing simulated state probabilities with those achieved by running circuits on a target device.
+
+Reference: https://www.nature.com/articles/s41586-019-1666-5
+
+```python
+class XEB(num_circuits, cycle_depths, interleaved_layer=cirq.CZ, single_qubit_gate_set=None, *, random_seed=None, _samples=None, **kwargs)
+```
+
+<ParamField path="num_circuits" type="int" required>
+  Number of circuits to sample.
+</ParamField>
+
+<ParamField path="cycle_depths" type="Iterable[int]" required>
+  The cycle depths to sample.
+</ParamField>
+
+<ParamField path="interleaved_layer" type="cirq.Gate | cirq.OP_TREE | None" default="cirq.CZ">
+  The gate or operation(s) to interleave between the single qubit gates. If None then no gates are interleaved.
+</ParamField>
+
+<ParamField path="single_qubit_gate_set" type="Sequence[cirq.Gate] | None">
+  Optional list of single qubit gates to randomly sample from when generating random circuits. If not provided, defaults to phased X gates with 1/4 pi intervals.
+</ParamField>
+
+<ParamField path="random_seed" type="int | np.random.Generator | None">
+  An optional seed to use for randomization.
+</ParamField>
+
+<ParamField path="_samples" type="list[Sample] | None">
+  Optional list of samples to construct the experiment from.
+</ParamField>
+
+<ParamField path="**kwargs" type="str">
+  Any additional supported string keyword args.
+</ParamField>
+
+#### Properties
+
+<ResponseField name="interleaved_layer" type="cirq.OP_TREE | None">
+  The layer to interleave.
+</ResponseField>
+
+<ResponseField name="single_qubit_gate_set" type="list[cirq.Gate]">
+  The single qubit gates to randomly sample from.
+</ResponseField>
+
+#### Methods
+
+##### independent_qubit_groups
+
+Get all independent subsets of qubits in this experiment.
+
+```python
+independent_qubit_groups()
+```
+
+Returns a list of disjoint tuples of `cirq.Qid` objects, each of which can be analyzed as an independent XEB experiment.
+
+#### Usage example
+
+```python
+import cirq
+from supermarq.qcvv import XEB
+
+# Create an XEB experiment
+experiment = XEB(
+    num_circuits=10,
+    cycle_depths=[5, 10, 15, 20],
+    interleaved_layer=cirq.CZ,
+    single_qubit_gate_set=[
+        cirq.PhasedXPowGate(exponent=0.5, phase_exponent=0.0),
+        cirq.PhasedXPowGate(exponent=0.5, phase_exponent=0.25),
+        cirq.PhasedXPowGate(exponent=0.5, phase_exponent=0.5),
+    ]
+)
+
+# Run with simulator
+sim = cirq.Simulator()
+results = experiment.run_with_simulator(simulator=sim, repetitions=10000)
+
+# Analyze results
+results.analyze()
+print(f"Cycle fidelity: {results.cycle_fidelity_estimate:.5f}")
+```
+
+---
+
+## Results classes
+
+### IRBResults
+
+Results from an IRB experiment (with interleaving).
+
+```python
+@dataclass
+class IRBResults(QCVVResults)
+```
+
+#### Properties
+
+<ResponseField name="rb_decay_coefficient" type="float">
+  Decay coefficient estimate without the interleaving gate.
+</ResponseField>
+
+<ResponseField name="rb_decay_coefficient_std" type="float">
+  Standard deviation of the decay coefficient estimate without the interleaving gate.
+</ResponseField>
+
+<ResponseField name="irb_decay_coefficient" type="float">
+  Decay coefficient estimate with the interleaving gate.
+</ResponseField>
+
+<ResponseField name="irb_decay_coefficient_std" type="float">
+  Standard deviation of the decay coefficient estimate with the interleaving gate.
+</ResponseField>
+
+<ResponseField name="average_interleaved_gate_error" type="float">
+  Estimate of the interleaving gate error.
+</ResponseField>
+
+<ResponseField name="average_interleaved_gate_error_std" type="float">
+  Standard deviation of the estimate for the interleaving gate error.
+</ResponseField>
+
+#### Methods
+
+##### exp_decay
+
+Exponential decay function of the form A * alpha^x + B.
+
+```python
+@staticmethod
+exp_decay(x, A, alpha, B)
+```
+
+<ParamField path="x" type="npt.ArrayLike" required>
+  x values
+</ParamField>
+
+<ParamField path="A" type="float" required>
+  Decay constant
+</ParamField>
+
+<ParamField path="alpha" type="float" required>
+  Decay coefficient
+</ParamField>
+
+<ParamField path="B" type="float" required>
+  Additive constant
+</ParamField>
+
+Returns exponential decay applied to x.
+
+---
+
+### RBResults
+
+Results from an RB experiment (randomized benchmarking without interleaving).
+
+```python
+@dataclass
+class RBResults(QCVVResults)
+```
+
+#### Properties
+
+<ResponseField name="rb_decay_coefficient" type="float">
+  Decay coefficient estimate without the interleaving gate.
+</ResponseField>
+
+<ResponseField name="rb_decay_coefficient_std" type="float">
+  Standard deviation of the decay coefficient estimate without the interleaving gate.
+</ResponseField>
+
+<ResponseField name="average_error_per_clifford" type="float">
+  Estimate of the average error per Clifford operation.
+</ResponseField>
+
+<ResponseField name="average_error_per_clifford_std" type="float">
+  Standard deviation of the average error per Clifford operation.
+</ResponseField>
+
+---
+
+### SSBResults
+
+Results from an SSB experiment.
+
+```python
+@dataclass
+class SSBResults(QCVVResults)
+```
+
+#### Properties
+
+<ResponseField name="cz_fidelity_estimate" type="float">
+  Estimated CZ fidelity.
+</ResponseField>
+
+<ResponseField name="cz_fidelity_estimate_std" type="float">
+  Standard deviation for the CZ fidelity estimate.
+</ResponseField>
+
+---
+
+### SU2Results
+
+Results from an SU2 experiment.
+
+```python
+@dataclass
+class SU2Results(QCVVResults)
+```
+
+#### Properties
+
+<ResponseField name="two_qubit_gate_fidelity" type="float">
+  Estimated two qubit gate fidelity.
+</ResponseField>
+
+<ResponseField name="two_qubit_gate_fidelity_std" type="float">
+  Standard deviation of estimated two qubit gate fidelity.
+</ResponseField>
+
+<ResponseField name="single_qubit_noise" type="float">
+  Estimated single qubit noise.
+</ResponseField>
+
+<ResponseField name="single_qubit_noise_std" type="float">
+  Standard deviation of estimated single qubit noise.
+</ResponseField>
+
+<ResponseField name="two_qubit_gate_error" type="float">
+  The two qubit gate error. Equal to one minus the fidelity.
+</ResponseField>
+
+<ResponseField name="two_qubit_gate_error_std" type="float">
+  The two qubit gate error standard deviation. Equal to standard deviation of the fidelity.
+</ResponseField>
+
+---
+
+### XEBResults
+
+Results from an XEB experiment.
+
+```python
+@dataclass
+class XEBResults(QCVVResults)
+```
+
+#### Properties
+
+<ResponseField name="cycle_fidelity_estimate" type="float">
+  Estimated cycle fidelity.
+</ResponseField>
+
+<ResponseField name="cycle_fidelity_estimate_std" type="float">
+  Standard deviation for the cycle fidelity estimate.
+</ResponseField>
+
+#### Methods
+
+##### plot_speckle
+
+Creates the speckle plot of the XEB data.
+
+```python
+plot_speckle(filename=None)
+```
+
+<ParamField path="filename" type="str | None">
+  Optional argument providing a filename to save the plots to.
+</ParamField>
+
+Returns a matplotlib figure with the speckle plot.
+
+Reference: See Fig. S18 of https://arxiv.org/abs/1910.11333 for an explanation of this plot.

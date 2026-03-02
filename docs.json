@@ -105,7 +105,8 @@
             "pages": [
               "api/supermarq/benchmark",
               "api/supermarq/benchmarks",
-              "api/supermarq/features"
+              "api/supermarq/features",
+              "api/supermarq/qcvv"
             ]
           }
         ]
