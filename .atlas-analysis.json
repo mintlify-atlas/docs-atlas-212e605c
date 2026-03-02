@@ -1,0 +1,128 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Superstaq",
+  "projectDescription": "Python SDKs for quantum computing with Cirq and Qiskit, providing access to Superstaq's optimized quantum execution platform.",
+  "theme": "aspen",
+  "primaryColor": "#00b198",
+  "lightColor": "#ffffff",
+  "darkColor": "#141a5e",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "authentication",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/backends",
+              "concepts/jobs",
+              "concepts/compilation"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/qiskit",
+              "guides/cirq",
+              "guides/custom-gates",
+              "guides/optimization",
+              "guides/error-mitigation"
+            ]
+          },
+          {
+            "group": "Benchmarking",
+            "pages": [
+              "benchmarking/overview",
+              "benchmarking/running-benchmarks",
+              "benchmarking/available-benchmarks"
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": [
+              "examples/basic-circuit",
+              "examples/job-submission",
+              "examples/hardware-execution"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "General Superstaq",
+            "pages": [
+              "api/general/service",
+              "api/general/client",
+              "api/general/exceptions",
+              "api/general/models"
+            ]
+          },
+          {
+            "group": "Qiskit Superstaq",
+            "pages": [
+              "api/qiskit/provider",
+              "api/qiskit/backend",
+              "api/qiskit/job",
+              "api/qiskit/custom-gates",
+              "api/qiskit/serialization"
+            ]
+          },
+          {
+            "group": "Cirq Superstaq",
+            "pages": [
+              "api/cirq/service",
+              "api/cirq/job",
+              "api/cirq/sampler",
+              "api/cirq/custom-operations",
+              "api/cirq/serialization"
+            ]
+          },
+          {
+            "group": "Supermarq",
+            "pages": [
+              "api/supermarq/benchmark",
+              "api/supermarq/benchmarks",
+              "api/supermarq/features"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-framework support for Cirq and Qiskit",
+    "Hardware-optimized circuit compilation",
+    "Custom quantum gates and operations",
+    "Job submission and management",
+    "Quantum circuit serialization",
+    "Scalable quantum benchmarking suite",
+    "Error mitigation techniques",
+    "Cross-layer optimization"
+  ],
+  "publicApiSurface": [
+    "qiskit_superstaq.SuperstaqProvider",
+    "qiskit_superstaq.SuperstaqBackend",
+    "qiskit_superstaq.SuperstaqJob",
+    "cirq_superstaq.Service",
+    "cirq_superstaq.Job",
+    "cirq_superstaq.Sampler",
+    "general_superstaq.Service",
+    "general_superstaq.superstaq_client.SuperstaqClient",
+    "supermarq.benchmarks.GHZ",
+    "supermarq.benchmarks.MerminBell",
+    "supermarq.benchmarks.HamiltonianSimulation",
+    "supermarq.benchmarks.VQEProxy",
+    "supermarq.benchmarks.QAOAFermionicSwapProxy"
+  ]
+}
